@@ -5,12 +5,12 @@ This project adds xDS support for Kitex and enables Kitex to perform in Proxyles
 
 ## Feature
 
-* Service Discovery:
+* Service Discovery
 * Traffic Route: only support `exact` match for `header` and `method`
 	* [HTTP route configuration](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/http/http_routing#arch-overview-http-routing): configure via VirtualService
 	* [ThriftProxy](https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/network/thrift_proxy/v3/thrift_proxy.proto): configure via patching EnvoyFilter
 * Timeout Configuration:
-	* 	Configuration inside HTTP route configuration: configure via VirtualService
+    * Configuration inside HTTP route configuration: configure via VirtualService
 
 ## Usage
 ### xDS module
@@ -23,7 +23,7 @@ The xdsClient is responsible for the interaction with the xDS Server (i.e. Istio
 *  `POD_NAME`: the name of this pod.
 *  `INSTANCE_IP`: the ip of this pod.
 
-Add the following part to the definition of your container.
+Add the following part to the definition of your container that uses xDS-enabled Kitex client.
 
 ```
 - name: POD_NAMESPACE
@@ -56,7 +56,7 @@ client.WithXDSSuite(xds.ClientSuite{
 }),
 ```
 
-The URL of the target service should be in the format, which follows the format in [Kubernetes](https://kubernetes.io/):
+* The URL of the target service should be in the format, which follows the format in [Kubernetes](https://kubernetes.io/):
 
 ```
 <service-name>.<namespace>.svc.cluster.local:<service-port>
