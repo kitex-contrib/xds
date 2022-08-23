@@ -21,7 +21,7 @@ linters-settings:
   goimports:
     # Put imports beginning with prefix after 3rd-party packages.
     # It's a comma-separated list of prefixes.
-    local-prefixes: github.com/kitex-contrib/kitex
+    local-prefixes: github.com/kitex-contrib/xds
   govet:
     # Disable analyzers by name.
     # Run `go tool vet help` to see all analyzers.
