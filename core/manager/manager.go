@@ -25,9 +25,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/kitex-contrib/xds/core/xdsresource"
-
 	"github.com/cloudwego/kitex/pkg/klog"
+
+	"github.com/kitex-contrib/xds/core/xdsresource"
 )
 
 // xdsResourceManager manages all the xds resources in the cache and export Get function for resource retrieve.
@@ -112,7 +112,7 @@ func (m *xdsResourceManager) getFromCache(rType xdsresource.ResourceType, rName 
 // If the resource is not in the cache, it will be fetched from the control plane via client.
 // This will be a synchronous call. It uses the notifier to notify the resource update and return the resource.
 func (m *xdsResourceManager) Get(ctx context.Context, rType xdsresource.ResourceType, rName string) (interface{}, error) {
-	if _, ok := xdsresource.ResourceTypeToUrl[rType]; !ok {
+	if _, ok := xdsresource.ResourceTypeToURL[rType]; !ok {
 		return nil, fmt.Errorf("[XDS] manager, invalid resource type: %d", rType)
 	}
 	// Get from cache first
@@ -207,7 +207,7 @@ func (m *xdsResourceManager) Dump() {
 	if err != nil {
 		klog.Warnf("[XDS] manager, marshal xds resource failed when dumping, error=%s", err)
 	}
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := os.WriteFile(path, data, 0o644); err != nil {
 		klog.Warnf("[XDS] manager, dump xds resource failed\n")
 	}
 }

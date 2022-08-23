@@ -143,7 +143,7 @@ func (svr *testAdsService) handleRequest(msg interface{}) {
 		// ignore msgs other than DiscoveryRequest
 		return
 	}
-	rType, ok := xdsresource.ResourceUrlToType[req.TypeUrl]
+	rType, ok := xdsresource.ResourceURLToType[req.TypeUrl]
 	if !ok {
 		return
 	}

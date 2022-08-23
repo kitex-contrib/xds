@@ -45,35 +45,35 @@ const (
 // Resource types in xDS v3.
 const (
 	apiTypePrefix          = "type.googleapis.com/"
-	ListenerTypeUrl        = apiTypePrefix + "envoy.config.listener.v3.Listener"
-	RouteTypeUrl           = apiTypePrefix + "envoy.config.route.v3.RouteConfiguration"
-	ClusterTypeUrl         = apiTypePrefix + "envoy.config.cluster.v3.Cluster"
-	EndpointTypeUrl        = apiTypePrefix + "envoy.config.endpoint.v3.ClusterLoadAssignment"
-	SecretTypeUrl          = apiTypePrefix + "envoy.extensions.transport_sockets.tls.v3.Secret"
-	ExtensionConfigTypeUrl = apiTypePrefix + "envoy.config.core.v3.TypedExtensionConfig"
-	RuntimeTypeUrl         = apiTypePrefix + "envoy.service.runtime.v3.Runtime"
-	HTTPConnManagerTypeUrl = apiTypePrefix + "envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager"
-	ThriftProxyTypeUrl     = apiTypePrefix + "envoy.extensions.filters.network.thrift_proxy.v3.ThriftProxy"
+	ListenerTypeURL        = apiTypePrefix + "envoy.config.listener.v3.Listener"
+	RouteTypeURL           = apiTypePrefix + "envoy.config.route.v3.RouteConfiguration"
+	ClusterTypeURL         = apiTypePrefix + "envoy.config.cluster.v3.Cluster"
+	EndpointTypeURL        = apiTypePrefix + "envoy.config.endpoint.v3.ClusterLoadAssignment"
+	SecretTypeURL          = apiTypePrefix + "envoy.extensions.transport_sockets.tls.v3.Secret"
+	ExtensionConfigTypeURL = apiTypePrefix + "envoy.config.core.v3.TypedExtensionConfig"
+	RuntimeTypeURL         = apiTypePrefix + "envoy.service.runtime.v3.Runtime"
+	HTTPConnManagerTypeURL = apiTypePrefix + "envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager"
+	ThriftProxyTypeURL     = apiTypePrefix + "envoy.extensions.filters.network.thrift_proxy.v3.ThriftProxy"
 
-	NameTableTypeUrl = apiTypePrefix + "istio.networking.nds.v1.NameTable"
+	NameTableTypeURL = apiTypePrefix + "istio.networking.nds.v1.NameTable"
 	// AnyType is used only by ADS
 	AnyType = ""
 )
 
-var ResourceTypeToUrl = map[ResourceType]string{
-	ListenerType:    ListenerTypeUrl,
-	RouteConfigType: RouteTypeUrl,
-	ClusterType:     ClusterTypeUrl,
-	EndpointsType:   EndpointTypeUrl,
-	NameTableType:   NameTableTypeUrl,
+var ResourceTypeToURL = map[ResourceType]string{
+	ListenerType:    ListenerTypeURL,
+	RouteConfigType: RouteTypeURL,
+	ClusterType:     ClusterTypeURL,
+	EndpointsType:   EndpointTypeURL,
+	NameTableType:   NameTableTypeURL,
 }
 
-var ResourceUrlToType = map[string]ResourceType{
-	ListenerTypeUrl:  ListenerType,
-	RouteTypeUrl:     RouteConfigType,
-	ClusterTypeUrl:   ClusterType,
-	EndpointTypeUrl:  EndpointsType,
-	NameTableTypeUrl: NameTableType,
+var ResourceURLToType = map[string]ResourceType{
+	ListenerTypeURL:  ListenerType,
+	RouteTypeURL:     RouteConfigType,
+	ClusterTypeURL:   ClusterType,
+	EndpointTypeURL:  EndpointsType,
+	NameTableTypeURL: NameTableType,
 }
 
 var ResourceTypeToName = map[ResourceType]string{

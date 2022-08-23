@@ -63,12 +63,12 @@ var (
 		Timeout: 0,
 	}
 	routeConfigNil = &xdsresource.RouteConfigResource{
-		HttpRouteConfig: &xdsresource.HTTPRouteConfig{
+		HTTPRouteConfig: &xdsresource.HTTPRouteConfig{
 			VirtualHosts: nil,
 		},
 	}
 	routeConfigPrefixNotMatched = &xdsresource.RouteConfigResource{
-		HttpRouteConfig: &xdsresource.HTTPRouteConfig{
+		HTTPRouteConfig: &xdsresource.HTTPRouteConfig{
 			VirtualHosts: []*xdsresource.VirtualHost{
 				{
 					Routes: []*xdsresource.Route{
@@ -79,7 +79,7 @@ var (
 		},
 	}
 	routeConfigDefaultPrefix = &xdsresource.RouteConfigResource{
-		HttpRouteConfig: &xdsresource.HTTPRouteConfig{
+		HTTPRouteConfig: &xdsresource.HTTPRouteConfig{
 			VirtualHosts: []*xdsresource.VirtualHost{
 				{
 					Routes: []*xdsresource.Route{
@@ -90,7 +90,7 @@ var (
 		},
 	}
 	routeConfigPathMatched = &xdsresource.RouteConfigResource{
-		HttpRouteConfig: &xdsresource.HTTPRouteConfig{
+		HTTPRouteConfig: &xdsresource.HTTPRouteConfig{
 			VirtualHosts: []*xdsresource.VirtualHost{
 				{
 					Routes: []*xdsresource.Route{
@@ -101,7 +101,7 @@ var (
 		},
 	}
 	routeConfigInOrder = &xdsresource.RouteConfigResource{
-		HttpRouteConfig: &xdsresource.HTTPRouteConfig{
+		HTTPRouteConfig: &xdsresource.HTTPRouteConfig{
 			VirtualHosts: []*xdsresource.VirtualHost{
 				{
 					Routes: []*xdsresource.Route{

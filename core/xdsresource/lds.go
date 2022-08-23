@@ -60,7 +60,7 @@ func UnmarshalLDS(rawResources []*any.Any) (map[string]*ListenerResource, error)
 	var errSlice []error
 
 	for _, r := range rawResources {
-		if r.GetTypeUrl() != ListenerTypeUrl {
+		if r.GetTypeUrl() != ListenerTypeURL {
 			err := fmt.Errorf("invalid listener resource type: %s", r.GetTypeUrl())
 			errSlice = append(errSlice, err)
 			continue
@@ -113,7 +113,7 @@ func unmarshalFilterChain(fc *v3listenerpb.FilterChain) ([]*NetworkFilter, error
 	for _, f := range fc.Filters {
 		switch cfgType := f.GetConfigType().(type) {
 		case *v3listenerpb.Filter_TypedConfig:
-			if cfgType.TypedConfig.TypeUrl == ThriftProxyTypeUrl {
+			if cfgType.TypedConfig.TypeUrl == ThriftProxyTypeURL {
 				r, err := unmarshalThriftProxy(cfgType.TypedConfig)
 				if err != nil {
 					errSlice = append(errSlice, err)
@@ -124,7 +124,7 @@ func unmarshalFilterChain(fc *v3listenerpb.FilterChain) ([]*NetworkFilter, error
 					InlineRouteConfig: r,
 				})
 			}
-			if cfgType.TypedConfig.TypeUrl == HTTPConnManagerTypeUrl {
+			if cfgType.TypedConfig.TypeUrl == HTTPConnManagerTypeURL {
 				n, r, err := unmarshallHTTPConnectionManager(cfgType.TypedConfig)
 				if err != nil {
 					errSlice = append(errSlice, err)
@@ -228,15 +228,15 @@ func unmarshallHTTPConnectionManager(rawResources *any.Any) (string, *RouteConfi
 		}
 		return httpConnMng.GetRds().GetRouteConfigName(), nil, nil
 	case *v3httppb.HttpConnectionManager_RouteConfig:
-		if rcfg := httpConnMng.GetRouteConfig(); rcfg == nil {
+		var rcfg *v3routepb.RouteConfiguration
+		if rcfg = httpConnMng.GetRouteConfig(); rcfg == nil {
 			return "", nil, fmt.Errorf("no inline route config")
-		} else {
-			inlineRouteConfig, err := unmarshalRouteConfig(rcfg)
-			if err != nil {
-				return "", nil, err
-			}
-			return httpConnMng.GetRouteConfig().GetName(), inlineRouteConfig, nil
 		}
+		inlineRouteConfig, err := unmarshalRouteConfig(rcfg)
+		if err != nil {
+			return "", nil, err
+		}
+		return httpConnMng.GetRouteConfig().GetName(), inlineRouteConfig, nil
 	}
 	return "", nil, nil
 }

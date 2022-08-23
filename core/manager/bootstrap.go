@@ -25,12 +25,12 @@ import (
 )
 
 const (
-	POD_NAMESPACE = "POD_NAMESPACE"
-	POD_NAME      = "POD_NAME"
-	INSTANCE_IP   = "INSTANCE_IP"
-	ISTIOD_ADDR   = "istiod.istio-system.svc:15010"
-	ISTIO_VERSION = "ISTIO_VERSION"
-	nodeIdSuffix  = "svc.cluster.local"
+	PodNamespace = "POD_NAMESPACE"
+	PodName      = "POD_NAME"
+	InstanceIP   = "INSTANCE_IP"
+	IstiodAddr   = "istiod.istio-system.svc:15010"
+	IstioVersion = "ISTIO_VERSION"
+	nodeIDSuffix = "svc.cluster.local"
 )
 
 type BootstrapConfig struct {
@@ -46,30 +46,30 @@ type XDSServerConfig struct {
 func newBootstrapConfig(xdsSvrAddress string) (*BootstrapConfig, error) {
 	// Get info from env
 	// Info needed for construct the nodeID
-	namespace := os.Getenv(POD_NAMESPACE)
+	namespace := os.Getenv(PodNamespace)
 	if namespace == "" {
 		return nil, fmt.Errorf("[XDS] Bootstrap, POD_NAMESPACE is not set in env")
 	}
-	podName := os.Getenv(POD_NAME)
+	podName := os.Getenv(PodName)
 	if podName == "" {
 		return nil, fmt.Errorf("[XDS] Bootstrap, POD_NAME is not set in env")
 	}
-	podIp := os.Getenv(INSTANCE_IP)
-	if podIp == "" {
+	podIP := os.Getenv(InstanceIP)
+	if podIP == "" {
 		return nil, fmt.Errorf("[XDS] Bootstrap, INSTANCE_IP is not set in env")
 	}
 	// specify the version of istio in case of the canary deployment of istiod
-	istioVersion := os.Getenv(ISTIO_VERSION)
+	istioVersion := os.Getenv(IstioVersion)
 
 	// use default istiod address if not specified
 	if xdsSvrAddress == "" {
-		xdsSvrAddress = ISTIOD_ADDR
+		xdsSvrAddress = IstiodAddr
 	}
 
 	return &BootstrapConfig{
 		node: &v3core.Node{
-			//"sidecar~" + podIp + "~" + podName + "." + namespace + "~" + namespace + ".svc.cluster.local",
-			Id: fmt.Sprintf("sidecar~%s~%s.%s~%s.%s", podIp, podName, namespace, namespace, nodeIdSuffix),
+			//"sidecar~" + podIP + "~" + podName + "." + namespace + "~" + namespace + ".svc.cluster.local",
+			Id: fmt.Sprintf("sidecar~%s~%s.%s~%s.%s", podIP, podName, namespace, namespace, nodeIDSuffix),
 			Metadata: &structpb.Struct{
 				Fields: map[string]*structpb.Value{
 					"ISTIO_VERSION": {

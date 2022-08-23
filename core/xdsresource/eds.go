@@ -105,7 +105,7 @@ func UnmarshalEDS(rawResources []*any.Any) (map[string]*EndpointsResource, error
 	errMap := make(map[string]error)
 	var errSlice []error
 	for _, r := range rawResources {
-		if r.GetTypeUrl() != EndpointTypeUrl {
+		if r.GetTypeUrl() != EndpointTypeURL {
 			err := fmt.Errorf("invalid endpoint resource type: %s", r.GetTypeUrl())
 			errSlice = append(errSlice, err)
 			continue

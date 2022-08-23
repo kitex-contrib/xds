@@ -43,7 +43,7 @@ func TestUnmarshalRDSError(t *testing.T) {
 		{
 			name: "incorrect resource type url",
 			rawResources: []*any.Any{
-				{TypeUrl: EndpointTypeUrl, Value: []byte{}},
+				{TypeUrl: EndpointTypeURL, Value: []byte{}},
 			},
 			want:    map[string]*RouteConfigResource{},
 			wantErr: true,
@@ -115,8 +115,8 @@ func TestUnmarshalRDSSuccess(t *testing.T) {
 	assert.Equal(t, 1, len(got))
 	routeConfig := got[routeConfigName]
 	assert.NotNil(t, routeConfig)
-	assert.Equal(t, 1, len(routeConfig.HttpRouteConfig.VirtualHosts))
-	vh := routeConfig.HttpRouteConfig.VirtualHosts[0]
+	assert.Equal(t, 1, len(routeConfig.HTTPRouteConfig.VirtualHosts))
+	vh := routeConfig.HTTPRouteConfig.VirtualHosts[0]
 	assert.Equal(t, vhName, vh.Name)
 	assert.NotNil(t, vh.Routes)
 	assert.True(t, vh.Routes[0].Match.MatchPath(path))

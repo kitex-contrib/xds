@@ -40,7 +40,7 @@ func TestUnmarshalCDSError(t *testing.T) {
 		{
 			name: "incorrect resource type url",
 			rawResources: []*any.Any{
-				{TypeUrl: ListenerTypeUrl, Value: []byte{}},
+				{TypeUrl: ListenerTypeURL, Value: []byte{}},
 			},
 			want:    map[string]*ClusterResource{},
 			wantErr: true,

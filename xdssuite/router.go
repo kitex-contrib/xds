@@ -155,7 +155,7 @@ func (r *XDSRouter) matchRoute(ctx context.Context, ri rpcinfo.RPCInfo) (*xdsres
 
 // matchHTTPRoute matches one http route
 func matchHTTPRoute(ri rpcinfo.RPCInfo, routeConfig *xdsresource.RouteConfigResource) *xdsresource.Route {
-	if rcfg := routeConfig.HttpRouteConfig; rcfg != nil {
+	if rcfg := routeConfig.HTTPRouteConfig; rcfg != nil {
 		var svcName string
 		if ri.Invocation().PackageName() == "" {
 			svcName = ri.Invocation().ServiceName()

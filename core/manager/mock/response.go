@@ -38,7 +38,7 @@ var (
 			xdsresource.MarshalAny(xdsresource.Listener2),
 		},
 		Canary:       false,
-		TypeUrl:      xdsresource.ListenerTypeUrl,
+		TypeUrl:      xdsresource.ListenerTypeURL,
 		Nonce:        LDSNonce1,
 		ControlPlane: nil,
 	}
@@ -48,7 +48,7 @@ var (
 			xdsresource.MarshalAny(xdsresource.Listener2),
 		},
 		Canary:       false,
-		TypeUrl:      xdsresource.ListenerTypeUrl,
+		TypeUrl:      xdsresource.ListenerTypeURL,
 		Nonce:        LDSNonce2,
 		ControlPlane: nil,
 	}
@@ -56,7 +56,7 @@ var (
 		VersionInfo:  LDSVersion3,
 		Resources:    nil,
 		Canary:       false,
-		TypeUrl:      xdsresource.ListenerTypeUrl,
+		TypeUrl:      xdsresource.ListenerTypeURL,
 		Nonce:        LDSNonce3,
 		ControlPlane: nil,
 	}
@@ -75,7 +75,7 @@ var (
 			xdsresource.MarshalAny(xdsresource.RouteConfig2),
 		},
 		Canary:       false,
-		TypeUrl:      xdsresource.RouteTypeUrl,
+		TypeUrl:      xdsresource.RouteTypeURL,
 		Nonce:        RDSNonce1,
 		ControlPlane: nil,
 	}
@@ -85,7 +85,7 @@ var (
 			xdsresource.MarshalAny(xdsresource.RouteConfig2),
 		},
 		Canary:       false,
-		TypeUrl:      xdsresource.RouteTypeUrl,
+		TypeUrl:      xdsresource.RouteTypeURL,
 		Nonce:        RDSNonce2,
 		ControlPlane: nil,
 	}
@@ -105,7 +105,7 @@ var (
 			xdsresource.MarshalAny(xdsresource.Cluster2),
 		},
 		Canary:       false,
-		TypeUrl:      xdsresource.ClusterTypeUrl,
+		TypeUrl:      xdsresource.ClusterTypeURL,
 		Nonce:        CDSNonce1,
 		ControlPlane: nil,
 	}
@@ -115,7 +115,7 @@ var (
 			xdsresource.MarshalAny(xdsresource.Cluster2),
 		},
 		Canary:       false,
-		TypeUrl:      xdsresource.ClusterTypeUrl,
+		TypeUrl:      xdsresource.ClusterTypeURL,
 		Nonce:        CDSNonce2,
 		ControlPlane: nil,
 	}
@@ -135,7 +135,7 @@ var (
 			xdsresource.MarshalAny(xdsresource.Endpoints2),
 		},
 		Canary:       false,
-		TypeUrl:      xdsresource.EndpointTypeUrl,
+		TypeUrl:      xdsresource.EndpointTypeURL,
 		Nonce:        EDSNonce1,
 		ControlPlane: nil,
 	}
@@ -145,7 +145,7 @@ var (
 			xdsresource.MarshalAny(xdsresource.Endpoints2),
 		},
 		Canary:       false,
-		TypeUrl:      xdsresource.EndpointTypeUrl,
+		TypeUrl:      xdsresource.EndpointTypeURL,
 		Nonce:        EDSNonce2,
 		ControlPlane: nil,
 	}
@@ -161,7 +161,7 @@ var (
 			xdsresource.MarshalAny(xdsresource.NameTable1),
 		},
 		Canary:       false,
-		TypeUrl:      xdsresource.NameTableTypeUrl,
+		TypeUrl:      xdsresource.NameTableTypeURL,
 		Nonce:        NDSNonce1,
 		ControlPlane: nil,
 	}

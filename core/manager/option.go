@@ -34,7 +34,7 @@ type Option struct {
 func NewOptions(opts []Option) *Options {
 	o := &Options{
 		XDSSvrConfig: &XDSServerConfig{
-			SvrAddr: ISTIOD_ADDR,
+			SvrAddr: IstiodAddr,
 		},
 		DumpPath: defaultDumpPath,
 	}

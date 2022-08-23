@@ -33,7 +33,7 @@ func UnmarshalNDS(rawResources []*any.Any) (*NDSResource, error) {
 		return nil, fmt.Errorf("no NDS resource found in the response")
 	}
 	r := rawResources[0]
-	if r.GetTypeUrl() != NameTableTypeUrl {
+	if r.GetTypeUrl() != NameTableTypeURL {
 		return nil, fmt.Errorf("invalid nameTable resource type: %s", r.GetTypeUrl())
 	}
 	nt := &dnsProto.NameTable{}

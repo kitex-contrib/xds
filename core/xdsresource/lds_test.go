@@ -41,7 +41,7 @@ func TestUnmarshalLDSError(t *testing.T) {
 		{
 			name: "incorrect resource type url",
 			rawResources: []*any.Any{
-				{TypeUrl: EndpointTypeUrl, Value: []byte{}},
+				{TypeUrl: EndpointTypeURL, Value: []byte{}},
 			},
 			want:    map[string]*ListenerResource{},
 			wantErr: true,
@@ -81,7 +81,7 @@ func TestUnmarshalLDSHttpConnectionManager(t *testing.T) {
 	assert.NotNil(t, lis1.NetworkFilters)
 	inlineRcfg := lis2.NetworkFilters[0].InlineRouteConfig
 	assert.NotNil(t, inlineRcfg)
-	assert.NotNil(t, inlineRcfg.HttpRouteConfig)
+	assert.NotNil(t, inlineRcfg.HTTPRouteConfig)
 }
 
 func TestUnmarshallLDSThriftProxy(t *testing.T) {

@@ -28,11 +28,11 @@ import (
 )
 
 // RouteConfigResource is used for routing
-// HttpRouteConfig is the native http route config, which consists of a list of virtual hosts.
+// HTTPRouteConfig is the native http route config, which consists of a list of virtual hosts.
 // ThriftRouteConfig is converted from the routeConfiguration in thrift proxy, which can only be configured in the listener filter
 // For details of thrift_proxy, please refer to: https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/network/thrift_proxy/v3/route.proto#envoy-v3-api-msg-extensions-filters-network-thrift-proxy-v3-routeconfiguration
 type RouteConfigResource struct {
-	HttpRouteConfig   *HTTPRouteConfig
+	HTTPRouteConfig   *HTTPRouteConfig
 	ThriftRouteConfig *ThriftRouteConfig
 }
 
@@ -199,7 +199,7 @@ func unmarshalRouteConfig(routeConfig *v3routepb.RouteConfiguration) (*RouteConf
 		virtualHosts[i] = virtualHost
 	}
 	return &RouteConfigResource{
-		HttpRouteConfig: &HTTPRouteConfig{virtualHosts},
+		HTTPRouteConfig: &HTTPRouteConfig{virtualHosts},
 	}, nil
 }
 
@@ -208,7 +208,7 @@ func UnmarshalRDS(rawResources []*any.Any) (map[string]*RouteConfigResource, err
 	errMap := make(map[string]error)
 	var errSlice []error
 	for _, r := range rawResources {
-		if r.GetTypeUrl() != RouteTypeUrl {
+		if r.GetTypeUrl() != RouteTypeURL {
 			err := fmt.Errorf("invalid route config resource type: %s", r.GetTypeUrl())
 			errSlice = append(errSlice, err)
 			continue

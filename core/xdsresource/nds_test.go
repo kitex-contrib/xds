@@ -48,7 +48,7 @@ func TestUnmarshalNDSError(t *testing.T) {
 			name: "incorrect resource type url",
 			args: args{
 				[]*any.Any{
-					{TypeUrl: ListenerTypeUrl, Value: []byte{}},
+					{TypeUrl: ListenerTypeURL, Value: []byte{}},
 				},
 			},
 			want:    nil,

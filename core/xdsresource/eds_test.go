@@ -41,7 +41,7 @@ func TestUnmarshalEDSError(t *testing.T) {
 		{
 			name: "incorrect resource type url",
 			rawResources: []*any.Any{
-				{TypeUrl: ListenerTypeUrl, Value: []byte{}},
+				{TypeUrl: ListenerTypeURL, Value: []byte{}},
 			},
 			want:    map[string]*EndpointsResource{},
 			wantErr: true,

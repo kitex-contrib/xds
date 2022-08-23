@@ -174,7 +174,7 @@ func (c *xdsClient) prepareRequest(rType xdsresource.ResourceType, version, nonc
 	return &discoveryv3.DiscoveryRequest{
 		VersionInfo:   version,
 		Node:          c.config.node,
-		TypeUrl:       xdsresource.ResourceTypeToUrl[rType],
+		TypeUrl:       xdsresource.ResourceTypeToURL[rType],
 		ResourceNames: rNames,
 		ResponseNonce: nonce,
 	}
@@ -468,7 +468,7 @@ func (c *xdsClient) handleResponse(msg interface{}) error {
 	}
 
 	url := resp.GetTypeUrl()
-	rType, ok := xdsresource.ResourceUrlToType[url]
+	rType, ok := xdsresource.ResourceURLToType[url]
 	if !ok {
 		klog.Warnf("KITEX: [XDS] client handleResponse, unknown type of resource, url: %s", url)
 		return nil

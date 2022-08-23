@@ -42,13 +42,18 @@ valueFrom:
 
 ### Client-side
 
-For now, we only provide the support on the client-side. To use a xds-enabled Kitex client, you should specify `destService` using the URL of your target service and add one option `WithXDSSuite`.
+For now, we only provide the support on the client-side. 
+To use a xds-enabled Kitex client, you should specify `destService` using the URL of your target service and add one option `WithXDSSuite`.
+
+* Construct a `xds.ClientSuite` that includes `RouteMiddleware` and `Resolver`, and then pass it into the `WithXDSSuite` option.
 
 ```
-client.WithXDSSuite(
-	xdssuite.NewXDSRouterMiddleware(),
-	xdssuite.NewXDSResolver(),
-),
+// import "github.com/cloudwego/kitex/pkg/xds"
+
+client.WithXDSSuite(xds.ClientSuite{
+	RouterMiddleware: xdssuite.NewXDSRouterMiddleware(),
+	Resolver:         xdssuite.NewXDSResolver(),
+}),
 ```
 
 The URL of the target service should be in the format, which follows the format in [Kubernetes](https://kubernetes.io/):

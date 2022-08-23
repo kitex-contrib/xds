@@ -86,7 +86,7 @@ func (c *ClusterResource) InlineEDS() *EndpointsResource {
 }
 
 func unmarshalCluster(r *any.Any) (string, *ClusterResource, error) {
-	if r.GetTypeUrl() != ClusterTypeUrl {
+	if r.GetTypeUrl() != ClusterTypeURL {
 		return "", nil, fmt.Errorf("invalid cluster resource type: %s", r.GetTypeUrl())
 	}
 	c := &v3clusterpb.Cluster{}
