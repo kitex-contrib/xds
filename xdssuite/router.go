@@ -26,9 +26,10 @@ import (
 	"github.com/cloudwego/kitex/pkg/rpcinfo/remoteinfo"
 
 	"github.com/bytedance/gopkg/lang/fastrand"
+	"github.com/kitex-contrib/xds/core/xdsresource"
+
 	"github.com/cloudwego/kitex/pkg/rpcinfo"
 	"github.com/cloudwego/kitex/transport"
-	"github.com/kitex-contrib/xds/core/xdsresource"
 )
 
 // NewXDSRouterMiddleware creates a middleware for request routing via XDS.

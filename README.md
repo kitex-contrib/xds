@@ -72,8 +72,10 @@ http:
 
 To match the rule defined in VirtualService, we can use `client.WithTag(key, val string)` or `callopt.WithTag(key, val string)`to specify the tags, which will be used to match the rules.
 
+* Set key and value to be "stage" and "canary" to match the above rule defined in VirtualService.
 ```
 client.WithTag("stage", "canary")
+callopt.WithTag("stage", "canary")
 ```
 
 ## Example
@@ -82,6 +84,7 @@ The usage is as follows:
 ```
 import (
 	"github.com/cloudwego/kitex/client"
+	xds2 "github.com/cloudwego/kitex/pkg/xds"
 	"github.com/kitex-contrib/xds"
 	"github.com/kitex-contrib/xds/xdssuite"
 	"github.com/cloudwego/kitex-proxyless-test/service/codec/thrift/kitex_gen/proxyless/greetservice"
@@ -97,17 +100,16 @@ func main() {
 	// initialize the client
 	cli, err := greetservice.NewClient(
 		destService,
-		client.WithXDSSuite(
-			xdssuite.NewXDSRouterMiddleware(),
-			xdssuite.NewXDSResolver(),
-		),
+		client.WithXDSSuite(xds2.ClientSuite{
+			RouterMiddleware: xdssuite.NewXDSRouterMiddleware(),
+			Resolver:         xdssuite.NewXDSResolver(),
+		}),
 	)
 	
 	req := &proxyless.HelloRequest{Message: "Hello!"}
 	resp, err := c.cli.SayHello1(
 		ctx, 
 		req, 
-		callopt.WithTag("stage", "canary"), // add tag in callopt to test header match
 	) 
 }
 ```
@@ -123,7 +125,7 @@ apiVersion: "security.istio.io/v1beta1"
 kind: "PeerAuthentication"
 metadata:
   name: "default"
-  namespace: "bookinfo"
+  namespace: {your_namespace}
 spec:
   mtls:
     mode: DISABLE

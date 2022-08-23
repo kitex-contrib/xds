@@ -125,7 +125,7 @@ func unmarshalFilterChain(fc *v3listenerpb.FilterChain) ([]*NetworkFilter, error
 				})
 			}
 			if cfgType.TypedConfig.TypeUrl == HTTPConnManagerTypeUrl {
-				n, r, err := unmarshallHttpConnectionManager(cfgType.TypedConfig)
+				n, r, err := unmarshallHTTPConnectionManager(cfgType.TypedConfig)
 				if err != nil {
 					errSlice = append(errSlice, err)
 					continue
@@ -209,7 +209,7 @@ func unmarshalThriftProxy(rawResources *any.Any) (*RouteConfigResource, error) {
 	}, nil
 }
 
-func unmarshallHttpConnectionManager(rawResources *any.Any) (string, *RouteConfigResource, error) {
+func unmarshallHTTPConnectionManager(rawResources *any.Any) (string, *RouteConfigResource, error) {
 	httpConnMng := &v3httppb.HttpConnectionManager{}
 
 	if err := proto.Unmarshal(rawResources.GetValue(), httpConnMng); err != nil {

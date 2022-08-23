@@ -20,9 +20,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/kitex-contrib/xds/core/xdsresource"
+
 	"github.com/cloudwego/kitex/pkg/discovery"
 	"github.com/cloudwego/kitex/pkg/rpcinfo"
-	"github.com/kitex-contrib/xds/core/xdsresource"
 )
 
 // XDSResolver uses xdsResourceManager to get endpoints.

@@ -26,9 +26,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/cloudwego/kitex/client/callopt"
 	v3core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	discoveryv3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
+
+	"github.com/cloudwego/kitex/client/callopt"
 )
 
 type mockADSClient struct {

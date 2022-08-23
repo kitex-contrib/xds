@@ -22,12 +22,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kitex-contrib/xds/core/api/kitex_gen/envoy/service/discovery/v3"
+	v3 "github.com/kitex-contrib/xds/core/api/kitex_gen/envoy/service/discovery/v3"
 	"github.com/kitex-contrib/xds/core/api/kitex_gen/envoy/service/discovery/v3/aggregateddiscoveryservice"
 	"github.com/kitex-contrib/xds/core/xdsresource"
 
-	"github.com/cloudwego/kitex/server"
 	discoveryv3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
+
+	"github.com/cloudwego/kitex/server"
 )
 
 type testXDSServer struct {

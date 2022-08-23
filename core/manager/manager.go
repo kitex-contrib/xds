@@ -20,7 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -207,7 +207,7 @@ func (m *xdsResourceManager) Dump() {
 	if err != nil {
 		klog.Warnf("[XDS] manager, marshal xds resource failed when dumping, error=%s", err)
 	}
-	if err := ioutil.WriteFile(path, data, 0o644); err != nil {
+	if err := os.WriteFile(path, data, 0644); err != nil {
 		klog.Warnf("[XDS] manager, dump xds resource failed\n")
 	}
 }

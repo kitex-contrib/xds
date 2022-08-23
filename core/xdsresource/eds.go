@@ -22,10 +22,11 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/cloudwego/kitex/pkg/utils"
 	v3endpointpb "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	"github.com/golang/protobuf/ptypes/any"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/cloudwego/kitex/pkg/utils"
 )
 
 type Endpoint struct {

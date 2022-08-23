@@ -81,8 +81,8 @@ func (c *ClusterResource) MarshalJSON() ([]byte, error) {
 	})
 }
 
-func (r *ClusterResource) InlineEDS() *EndpointsResource {
-	return r.InlineEndpoints
+func (c *ClusterResource) InlineEDS() *EndpointsResource {
+	return c.InlineEndpoints
 }
 
 func unmarshalCluster(r *any.Any) (string, *ClusterResource, error) {

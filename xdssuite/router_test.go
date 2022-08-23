@@ -22,8 +22,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/cloudwego/kitex/pkg/rpcinfo"
 	"github.com/kitex-contrib/xds/core/xdsresource"
+
+	"github.com/cloudwego/kitex/pkg/rpcinfo"
 )
 
 var (
