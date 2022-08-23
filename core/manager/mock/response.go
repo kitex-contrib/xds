@@ -19,6 +19,7 @@ package mock
 import (
 	discoveryv3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"github.com/golang/protobuf/ptypes/any"
+
 	"github.com/kitex-contrib/xds/core/xdsresource"
 )
 

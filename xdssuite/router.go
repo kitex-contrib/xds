@@ -26,6 +26,7 @@ import (
 	"github.com/cloudwego/kitex/pkg/rpcinfo/remoteinfo"
 
 	"github.com/bytedance/gopkg/lang/fastrand"
+
 	"github.com/kitex-contrib/xds/core/xdsresource"
 
 	"github.com/cloudwego/kitex/pkg/rpcinfo"
