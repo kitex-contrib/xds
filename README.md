@@ -1,4 +1,6 @@
 # xDS support
+English | [中文](README_CN.md)
+
 [xDS](https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol) is a set of discovery services that enables date-plane to discover various dynamic resources via querying from the management servers.
 
 This project adds xDS support for Kitex and enables Kitex to perform in Proxyless mode. For more details of the design, please refer to the [proposal](https://github.com/cloudwego/kitex/issues/461).
