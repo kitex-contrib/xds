@@ -70,7 +70,7 @@ client.WithXDSSuite(xds.ClientSuite{
 
 We can define traffic route configuration via [VirtualService](https://istio.io/latest/docs/reference/config/networking/virtual-service/) in Istio.
 
-Rhe following example indicates that when the tag contains {"stage":"canary"} in the header, the request will be routed to the `v1` subcluster of `kitex-server`.
+The following example indicates that when the tag contains {"stage":"canary"} in the header, the request will be routed to the `v1` subcluster of `kitex-server`.
 
 ```
 apiVersion: networking.istio.io/v1alpha3

@@ -1,7 +1,7 @@
 # xDS 支持
 [English](README.md) | 中文
 
-[xDS](https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol) xDS是一类发现服务 API 的总称，数据面可以利用 xDS API 来完成配置信息的动态发现，包含LDS、RDS、 CDS、EDS 等。
+[xDS](https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol) 是一类发现服务 API 的总称，数据面可以利用 xDS API 来完成配置信息的动态发现，包含LDS、RDS、 CDS、EDS 等。
 
 Kitex 通过外部扩展 [kitex-contrib/xds](https://github.com/kitex-contrib/xds) 的形式对 xDS API 进行了支持，可通过代码配置开启 xDS 模块，让Kitex 服务以 Proxyless 的模式运行，被服务网格统一纳管。具体的设计方案参见 [proposal](https://github.com/cloudwego/kitex/issues/461)。
 
