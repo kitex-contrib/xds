@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/bytedance/gopkg/cloud/metainfo"
 	"github.com/cloudwego/kitex/pkg/endpoint"
 	"github.com/cloudwego/kitex/pkg/kerrors"
 	"github.com/cloudwego/kitex/pkg/rpcinfo/remoteinfo"
@@ -122,10 +123,14 @@ func (r *XDSRouter) matchRoute(ctx context.Context, ri rpcinfo.RPCInfo) (*xdsres
 			thriftFilter = f
 		}
 	}
+
+	// get metadata form context
+	md := metainfo.GetAllValues(ctx)
+
 	// match thriftFilter route first, only inline route is supported
 	if ri.Config().TransportProtocol() != transport.GRPC {
 		if thriftFilter != nil && thriftFilter.InlineRouteConfig != nil {
-			r := matchThriftRoute(ri, thriftFilter.InlineRouteConfig)
+			r := matchThriftRoute(md, ri, thriftFilter.InlineRouteConfig)
 			if r != nil {
 				return r, nil
 			}
@@ -136,7 +141,7 @@ func (r *XDSRouter) matchRoute(ctx context.Context, ri rpcinfo.RPCInfo) (*xdsres
 	}
 	// inline route config
 	if httpFilter.InlineRouteConfig != nil {
-		r := matchHTTPRoute(ri, httpFilter.InlineRouteConfig)
+		r := matchHTTPRoute(md, ri, httpFilter.InlineRouteConfig)
 		if r != nil {
 			return r, nil
 		}
@@ -147,7 +152,7 @@ func (r *XDSRouter) matchRoute(ctx context.Context, ri rpcinfo.RPCInfo) (*xdsres
 		return nil, fmt.Errorf("get route failed: %v", err)
 	}
 	rcfg := rds.(*xdsresource.RouteConfigResource)
-	rt := matchHTTPRoute(ri, rcfg)
+	rt := matchHTTPRoute(md, ri, rcfg)
 	if rt != nil {
 		return rt, nil
 	}
@@ -155,7 +160,7 @@ func (r *XDSRouter) matchRoute(ctx context.Context, ri rpcinfo.RPCInfo) (*xdsres
 }
 
 // matchHTTPRoute matches one http route
-func matchHTTPRoute(ri rpcinfo.RPCInfo, routeConfig *xdsresource.RouteConfigResource) *xdsresource.Route {
+func matchHTTPRoute(md map[string]string, ri rpcinfo.RPCInfo, routeConfig *xdsresource.RouteConfigResource) *xdsresource.Route {
 	if rcfg := routeConfig.HTTPRouteConfig; rcfg != nil {
 		var svcName string
 		if ri.Invocation().PackageName() == "" {
@@ -165,13 +170,14 @@ func matchHTTPRoute(ri rpcinfo.RPCInfo, routeConfig *xdsresource.RouteConfigReso
 		}
 		// path defined in the virtual services should be ${serviceName}/${methodName}
 		path := fmt.Sprintf("/%s/%s", svcName, ri.Invocation().MethodName())
+
 		// match
 		for _, vh := range rcfg.VirtualHosts {
 			// skip the domain match now.
 
 			// use the first matched route.
 			for _, r := range vh.Routes {
-				if routeMatched(path, ri.To(), r) {
+				if routeMatched(path, md, r) {
 					return r
 				}
 			}
@@ -181,10 +187,10 @@ func matchHTTPRoute(ri rpcinfo.RPCInfo, routeConfig *xdsresource.RouteConfigReso
 }
 
 // matchThriftRoute matches one thrift route
-func matchThriftRoute(ri rpcinfo.RPCInfo, routeConfig *xdsresource.RouteConfigResource) *xdsresource.Route {
+func matchThriftRoute(md map[string]string, ri rpcinfo.RPCInfo, routeConfig *xdsresource.RouteConfigResource) *xdsresource.Route {
 	if rcfg := routeConfig.ThriftRouteConfig; rcfg != nil {
 		for _, r := range rcfg.Routes {
-			if routeMatched(ri.To().Method(), ri.To(), r) {
+			if routeMatched(ri.To().Method(), md, r) {
 				return r
 			}
 		}
@@ -193,12 +199,11 @@ func matchThriftRoute(ri rpcinfo.RPCInfo, routeConfig *xdsresource.RouteConfigRe
 }
 
 // routeMatched checks if the route matches the info provided in the RPCInfo
-func routeMatched(path string, to rpcinfo.EndpointInfo, r *xdsresource.Route) bool {
+func routeMatched(path string, md map[string]string, r *xdsresource.Route) bool {
 	if r.Match != nil && r.Match.MatchPath(path) {
-		// return r
 		tagMatched := true
 		for mk, mv := range r.Match.GetTags() {
-			if v, ok := to.Tag(mk); !ok || v != mv {
+			if v, ok := md[mk]; !ok || v != mv {
 				tagMatched = false
 				break
 			}
