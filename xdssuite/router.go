@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/bytedance/gopkg/cloud/metainfo"
 	"github.com/cloudwego/kitex/pkg/endpoint"
 	"github.com/cloudwego/kitex/pkg/kerrors"
 	"github.com/cloudwego/kitex/pkg/rpcinfo/remoteinfo"
@@ -34,10 +33,15 @@ import (
 	"github.com/cloudwego/kitex/transport"
 )
 
+const (
+	// RouterClusterKey picked cluster in rpcInfo tag key
+	RouterClusterKey = "XDS_Route_Picked_Cluster"
+)
+
 // NewXDSRouterMiddleware creates a middleware for request routing via XDS.
 // This middleware picks one upstream cluster and sets RPCTimeout based on route config retrieved from XDS.
-func NewXDSRouterMiddleware() endpoint.Middleware {
-	router := NewXDSRouter()
+func NewXDSRouterMiddleware(opts ...Option) endpoint.Middleware {
+	router := NewXDSRouter(opts...)
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, request, response interface{}) error {
 			ri := rpcinfo.GetRPCInfo(ctx)
@@ -59,8 +63,7 @@ func NewXDSRouterMiddleware() endpoint.Middleware {
 	}
 }
 
-const (
-	RouterClusterKey         = "XDS_Route_Picked_Cluster"
+var (
 	defaultTotalWeight int32 = 100
 )
 
@@ -74,15 +77,17 @@ type RouteResult struct {
 // XDSRouter is a router that uses xds to route the rpc call
 type XDSRouter struct {
 	manager XDSResourceManager
+	opts    *Options
 }
 
-func NewXDSRouter() *XDSRouter {
+func NewXDSRouter(opts ...Option) *XDSRouter {
 	m := xdsResourceManager.getManager()
 	if m == nil {
 		panic("xds resource manager has not been initialized")
 	}
 	return &XDSRouter{
 		manager: m,
+		opts:    NewOptions(opts),
 	}
 }
 
@@ -124,8 +129,8 @@ func (r *XDSRouter) matchRoute(ctx context.Context, ri rpcinfo.RPCInfo) (*xdsres
 		}
 	}
 
-	// get metadata form context
-	md := metainfo.GetAllValues(ctx)
+	// get metadata
+	md := r.opts.metadataExtract(ctx)
 
 	// match thriftFilter route first, only inline route is supported
 	if ri.Config().TransportProtocol() != transport.GRPC {
