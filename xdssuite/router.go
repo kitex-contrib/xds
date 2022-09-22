@@ -63,9 +63,7 @@ func NewXDSRouterMiddleware(opts ...Option) endpoint.Middleware {
 	}
 }
 
-var (
-	defaultTotalWeight int32 = 100
-)
+var defaultTotalWeight int32 = 100
 
 // RouteResult stores the result of route
 type RouteResult struct {
