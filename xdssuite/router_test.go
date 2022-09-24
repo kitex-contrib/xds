@@ -117,23 +117,25 @@ var (
 func Test_matchHTTPRoute(t *testing.T) {
 	to := rpcinfo.NewEndpointInfo(svcName, method, nil, nil)
 	ri := rpcinfo.NewRPCInfo(nil, to, rpcinfo.NewInvocation(svcName, method, pkgName), nil, nil)
+	md := map[string]string{}
 
 	var r *xdsresource.Route
+
 	// not matched
-	r = matchHTTPRoute(ri, routeConfigNil)
+	r = matchHTTPRoute(md, ri, routeConfigNil)
 	assert.Nil(t, r)
-	r = matchHTTPRoute(ri, routeConfigPrefixNotMatched)
+	r = matchHTTPRoute(md, ri, routeConfigPrefixNotMatched)
 	assert.Nil(t, r)
 
 	// default prefix
-	r = matchHTTPRoute(ri, routeConfigDefaultPrefix)
+	r = matchHTTPRoute(md, ri, routeConfigDefaultPrefix)
 	assert.Equal(t, clusterName1, r.WeightedClusters[0].Name)
 	// path
-	r = matchHTTPRoute(ri, routeConfigPathMatched)
+	r = matchHTTPRoute(md, ri, routeConfigPathMatched)
 	assert.NotNil(t, r)
 	assert.Equal(t, clusterName2, r.WeightedClusters[0].Name)
 	// test the order, return the first matched
-	r = matchHTTPRoute(ri, routeConfigInOrder)
+	r = matchHTTPRoute(md, ri, routeConfigInOrder)
 	assert.NotNil(t, r)
 	assert.Equal(t, clusterName1, r.WeightedClusters[0].Name)
 }
