@@ -128,7 +128,7 @@ func (r *XDSRouter) matchRoute(ctx context.Context, ri rpcinfo.RPCInfo) (*xdsres
 	}
 
 	// get metadata
-	md := r.opts.metadataExtract(ctx)
+	md := r.opts.routerMetaExtractor(ctx)
 
 	// match thriftFilter route first, only inline route is supported
 	if ri.Config().TransportProtocol() != transport.GRPC {

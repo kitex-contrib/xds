@@ -22,11 +22,11 @@ import (
 	"github.com/bytedance/gopkg/cloud/metainfo"
 )
 
-type metadataExtract func(context.Context) map[string]string
+type routerMetaExtractor func(context.Context) map[string]string
 
 // Options for xds suite
 type Options struct {
-	metadataExtract metadataExtract
+	routerMetaExtractor routerMetaExtractor
 }
 
 func (o *Options) Apply(opts []Option) {
@@ -41,7 +41,7 @@ type Option struct {
 
 func NewOptions(opts []Option) *Options {
 	o := &Options{
-		metadataExtract: func(ctx context.Context) map[string]string {
+		routerMetaExtractor: func(ctx context.Context) map[string]string {
 			return metainfo.GetAllValues(ctx)
 		},
 	}
@@ -49,11 +49,11 @@ func NewOptions(opts []Option) *Options {
 	return o
 }
 
-// WithMetadataExtract configures the extractor for metadata
-func WithMetadataExtract(metadataExtract metadataExtract) Option {
+// WithRouterMetaExtractor configures the extractor for metadata
+func WithRouterMetaExtractor(routerMetaExtractor routerMetaExtractor) Option {
 	return Option{
 		F: func(o *Options) {
-			o.metadataExtract = metadataExtract
+			o.routerMetaExtractor = routerMetaExtractor
 		},
 	}
 }
