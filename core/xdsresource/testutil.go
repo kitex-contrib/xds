@@ -29,7 +29,8 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
-	dnsProto "istio.io/istio/pkg/dns/proto"
+
+	dnsProto "github.com/kitex-contrib/xds/core/api/kitex_gen/istio.io/istio/pkg/dns/proto/istio_networking_nds_v1"
 )
 
 func MarshalAny(message proto.Message) *any.Any {

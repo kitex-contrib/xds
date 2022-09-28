@@ -21,7 +21,8 @@ import (
 
 	"github.com/golang/protobuf/ptypes/any"
 	"google.golang.org/protobuf/proto"
-	dnsProto "istio.io/istio/pkg/dns/proto"
+
+	dnsProto "github.com/kitex-contrib/xds/core/api/kitex_gen/istio.io/istio/pkg/dns/proto/istio_networking_nds_v1"
 )
 
 type NDSResource struct {

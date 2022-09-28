@@ -4,13 +4,12 @@ go 1.17
 
 require (
 	github.com/bytedance/gopkg v0.0.0-20220531084716-665b4f21126f
-	github.com/cloudwego/kitex v0.3.5-0.20220822091835-bdc7da122693
+	github.com/cloudwego/kitex v0.4.2
 	github.com/envoyproxy/go-control-plane v0.10.3
 	github.com/golang/protobuf v1.5.2
 	github.com/stretchr/testify v1.7.1
 	google.golang.org/genproto v0.0.0-20220819174105-e9f053255caa
 	google.golang.org/protobuf v1.28.1
-	istio.io/istio v0.0.0-20220821121937-9e80784e1c17
 )
 
 require (
@@ -21,16 +20,19 @@ require (
 	github.com/cloudwego/fastpb v0.0.2 // indirect
 	github.com/cloudwego/frugal v0.1.3 // indirect
 	github.com/cloudwego/netpoll v0.2.6 // indirect
-	github.com/cloudwego/thriftgo v0.2.0 // indirect
+	github.com/cloudwego/thriftgo v0.2.1 // indirect
 	github.com/cncf/xds/go v0.0.0-20220520190051-1e77728a1eaa // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/envoyproxy/protoc-gen-validate v0.6.7 // indirect
+	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/jhump/protoreflect v1.8.2 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/kr/pretty v0.3.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/oleiade/lane v1.0.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/tidwall/gjson v1.9.3 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect

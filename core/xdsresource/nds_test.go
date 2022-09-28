@@ -23,7 +23,8 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/golang/protobuf/ptypes/any"
-	dnsProto "istio.io/istio/pkg/dns/proto"
+
+	dnsProto "github.com/kitex-contrib/xds/core/api/kitex_gen/istio.io/istio/pkg/dns/proto/istio_networking_nds_v1"
 )
 
 func TestUnmarshalNDSError(t *testing.T) {
