@@ -7,4 +7,7 @@ header:
     - '**/*.go'
     - '**/*.s'
 
+  paths-ignore:
+    - 'core/api/kitex_gen/**'
+
   comment: on-failure
