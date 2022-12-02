@@ -9,8 +9,10 @@ This project adds xDS support for Kitex and enables Kitex to perform in Proxyles
 
 * Service Discovery
 * Traffic Route: only support `exact` match for `header` and `method`
-	* [HTTP route configuration](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/http/http_routing#arch-overview-http-routing): configure via [VirtualService](https://istio.io/latest/docs/reference/config/networking/virtual-service/).
-	* [ThriftProxy](https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/network/thrift_proxy/v3/thrift_proxy.proto): configure via patching [EnvoyFilter](https://istio.io/latest/docs/reference/config/networking/envoy-filter/).
+    * [HTTP route configuration](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/http/http_routing#arch-overview-http-routing): configure via [VirtualService](https://istio.io/latest/docs/reference/config/networking/virtual-service/).
+      * Since Istio provides limited support for thrift protocol and most users are familiar with the config of VirtualService, we use a mapping from HTTP to Thrift in this configuration. 
+    * [ThriftProxy](https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/network/thrift_proxy/v3/thrift_proxy.proto): configure via patching [EnvoyFilter](https://istio.io/latest/docs/reference/config/networking/envoy-filter/).
+      * The configuration in ThriftProxy is very limited.
 * Timeout Configuration:
     * Configuration inside HTTP route configuration: configure via VirtualService.
 
@@ -94,12 +96,39 @@ spec:
     timeout: 0.5s
 ```
 
-To match the rule defined in VirtualService, we can use `client.WithTag(key, val string)` or `callopt.WithTag(key, val string)`to specify the tags, which will be used to match the rules.
+In order to match the rules defined in the VirtualService we need to specify the tags (metadata) of the traffic which will be used to match the rules.
 
-* Set key and value to be "stage" and "canary" to match the above rule defined in VirtualService.
+For example: set the key and value to "stage" and "canary" to match the above rules defined in VirtualService.
+
+* We can first define a MetaExtractor and pass it to `RouterMiddleware` through `xdssuite.WithRouterMetaExtractor`.
 ```
-client.WithTag("stage", "canary")
-callopt.WithTag("stage", "canary")
+var (
+	routeKey   = "stage"
+	routeValue = "canary"
+)
+
+func routeByStage(ctx context.Context) map[string]string {
+	if v, ok := metainfo.GetValue(ctx, routeKey); ok {
+		return map[string]string{
+			routeKey: v,
+		}
+	}
+	return nil
+}
+
+// add the option
+client.WithXDSSuite(xds2.ClientSuite{
+	RouterMiddleware: xdssuite.NewXDSRouterMiddleware(
+		// use this option to specify the meta extractor
+		xdssuite.WithRouterMetaExtractor(routeByStage),
+	),
+	Resolver: xdssuite.NewXDSResolver(),
+}),
+```
+* Set the metadata of the traffic (corresponding to the MetaExtractor) when make RPC Call. 
+Here, we use `metainfo.WithValue` to specify the label of the traffic. Metadata will be extracted for route matching.
+```
+ctx := metainfo.WithValue(context.Background(), routeKey, routeValue)
 ```
 
 #### Traffic route based on Method Match

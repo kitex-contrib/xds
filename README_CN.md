@@ -9,8 +9,9 @@ Kitex 通过外部扩展 [kitex-contrib/xds](https://github.com/kitex-contrib/xd
 
 * 服务发现
 * 服务路由：当前仅支持 `header` 与 `method` 的精确匹配。
-	* [HTTP route configuration](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/http/http_routing#arch-overview-http-routing): 通过 [VirtualService](https://istio.io/latest/docs/reference/config/networking/virtual-service/) 进行配置
-	* [ThriftProxy](https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/network/thrift_proxy/v3/thrift_proxy.proto): 通过 [EnvoyFilter](https://istio.io/latest/docs/reference/config/networking/envoy-filter/) 进行配置。
+    * [HTTP route configuration](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/http/http_routing#arch-overview-http-routing): 通过 [VirtualService](https://istio.io/latest/docs/reference/config/networking/virtual-service/) 进行配置
+      * 由于 Istio 对 thrift 协议的支持有限，并且大多数用户都熟悉 VirtualService 的配置，所以我们在该配置建立 HTTP 到 Thrift 的映射，以定义路由策略。
+    * [ThriftProxy](https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/network/thrift_proxy/v3/thrift_proxy.proto): 通过 [EnvoyFilter](https://istio.io/latest/docs/reference/config/networking/envoy-filter/) 进行配置。
 * 超时配置:
     * HTTP route configuration 内包含的配置，同样通过 VirtualService 来配置。
 
@@ -95,13 +96,38 @@ spec:
     timeout: 0.5s
 ```
 
-为了匹配 VirtualService 中定义的规则，我们可以使用`client.WithTag(key, val string)`或者`callopt.WithTag(key, val string)`来指定标签，这些标签将用于匹配规则。
+为了匹配 VirtualService 中定义的规则，我们需要指定流量的标签，这些标签将用于匹配规则。
 
-* 比如：将 key 和 value 设置为“stage”和“canary”，以匹配 VirtualService 中定义的上述规则。
+比如：将 key 和 value 设置为“stage”和“canary”，以匹配 VirtualService 中定义的上述规则。
 
+* 我们可以先定义一个元信息提取方法，并通过 `xdssuite.WithRouterMetaExtractor` 传入到 `RouterMiddleware` 中。
 ```
-client.WithTag("stage", "canary")
-callopt.WithTag("stage", "canary")
+var (
+	routeKey   = "stage"
+	routeValue = "canary"
+)
+
+func routeByStage(ctx context.Context) map[string]string {
+	if v, ok := metainfo.GetValue(ctx, routeKey); ok {
+		return map[string]string{
+			routeKey: v,
+		}
+	}
+	return nil
+}
+
+// add the option
+client.WithXDSSuite(xds2.ClientSuite{
+	RouterMiddleware: xdssuite.NewXDSRouterMiddleware(
+		// use this option to specify the meta extractor
+		xdssuite.WithRouterMetaExtractor(routeByStage),
+	),
+	Resolver: xdssuite.NewXDSResolver(),
+}),
+```
+* 在调用时设置流量的元信息（需与元信息提取方法对应）。这里，我们使用`metainfo.WithValue` 来指定流量的标签。在路由匹配时，会提取元信息进行匹配。
+```
+ctx := metainfo.WithValue(context.Background(), routeKey, routeValue)
 ```
 
 #### 基于 method 的路由匹配
