@@ -25,6 +25,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cloudwego/kitex/pkg/transmeta"
+
 	"github.com/kitex-contrib/xds/core/api/kitex_gen/envoy/service/discovery/v3/aggregateddiscoveryservice"
 	"github.com/kitex-contrib/xds/core/xdsresource"
 
@@ -44,8 +46,15 @@ type (
 
 // newADSClient constructs a new stream client that communicates with the xds server
 func newADSClient(addr string) (ADSClient, error) {
+	tlsConfig, err := GetTLSConfig()
+	if err != nil {
+		panic(err)
+	}
+	klog.Infof("[XDS] client: construct stream client with tls config: %v\n", tlsConfig)
 	cli, err := aggregateddiscoveryservice.NewClient("xds_servers",
 		client.WithHostPorts(addr),
+		client.WithGRPCTLSConfig(tlsConfig),
+		client.WithMetaHandler(transmeta.ClientHTTP2Handler),
 	)
 	if err != nil {
 		return nil, err
@@ -226,7 +235,8 @@ func (c *xdsClient) receiver() {
 		if err != nil {
 			klog.Errorf("KITEX: [XDS] client, receive failed, error=%s", err)
 			c.reconnect()
-			continue
+			//continue
+			break
 		}
 		err = c.handleResponse(resp)
 		if err != nil {

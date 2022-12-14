@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/bytedance/gopkg v0.0.0-20220531084716-665b4f21126f
 	github.com/cloudwego/kitex v0.4.2
+	github.com/cloudwego/thriftgo v0.2.1
 	github.com/envoyproxy/go-control-plane v0.10.3
 	github.com/golang/protobuf v1.5.2
 	github.com/stretchr/testify v1.7.1
@@ -20,7 +21,6 @@ require (
 	github.com/cloudwego/fastpb v0.0.2 // indirect
 	github.com/cloudwego/frugal v0.1.3 // indirect
 	github.com/cloudwego/netpoll v0.2.6 // indirect
-	github.com/cloudwego/thriftgo v0.2.1 // indirect
 	github.com/cncf/xds/go v0.0.0-20220520190051-1e77728a1eaa // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/envoyproxy/protoc-gen-validate v0.6.7 // indirect
@@ -45,3 +45,5 @@ require (
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/cloudwego/kitex => github.com/ppzqh/kitex v0.0.9-0.20221214024849-385a9c7f75a2
