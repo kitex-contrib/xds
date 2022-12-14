@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/bytedance/gopkg v0.0.0-20220531084716-665b4f21126f
 	github.com/cloudwego/kitex v0.4.2
-	github.com/cloudwego/thriftgo v0.2.1
+	github.com/cloudwego/thriftgo v0.2.4
 	github.com/envoyproxy/go-control-plane v0.10.3
 	github.com/golang/protobuf v1.5.2
 	github.com/stretchr/testify v1.7.1
@@ -18,13 +18,14 @@ require (
 	github.com/census-instrumentation/opencensus-proto v0.3.0 // indirect
 	github.com/chenzhuoyu/iasm v0.0.0-20220818063314-28c361dae733 // indirect
 	github.com/choleraehyq/pid v0.0.15 // indirect
-	github.com/cloudwego/fastpb v0.0.2 // indirect
+	github.com/cloudwego/fastpb v0.0.3 // indirect
 	github.com/cloudwego/frugal v0.1.3 // indirect
-	github.com/cloudwego/netpoll v0.2.6 // indirect
+	github.com/cloudwego/netpoll v0.3.1 // indirect
 	github.com/cncf/xds/go v0.0.0-20220520190051-1e77728a1eaa // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/envoyproxy/protoc-gen-validate v0.6.7 // indirect
 	github.com/google/go-cmp v0.5.8 // indirect
+	github.com/google/pprof v0.0.0-20220608213341-c488b8fa1db3 // indirect
 	github.com/jhump/protoreflect v1.8.2 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kr/pretty v0.3.0 // indirect
@@ -46,4 +47,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/cloudwego/kitex => github.com/ppzqh/kitex v0.0.9-0.20221214024849-385a9c7f75a2
+replace github.com/cloudwego/kitex => github.com/ppzqh/kitex v0.0.9-0.20221214081401-61d92d24461b

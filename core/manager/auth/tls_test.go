@@ -1,4 +1,4 @@
-package manager
+package auth
 
 import (
 	"testing"

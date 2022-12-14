@@ -1,4 +1,4 @@
-package manager
+package auth
 
 import (
 	"crypto/rand"
@@ -7,14 +7,9 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"fmt"
 	"io/ioutil"
 	"math/big"
-	"os"
 	"time"
-
-	"github.com/cloudwego/kitex/pkg/klog"
-	"github.com/cloudwego/kitex/pkg/remote/trans/nphttp2/metadata"
 )
 
 var (
@@ -39,32 +34,6 @@ var (
 		KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
 	}
 )
-
-const (
-	jwtTokenPath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
-)
-
-func getJWTToken() (string, error) {
-	saToken := jwtTokenPath
-
-	token, err := os.ReadFile(saToken)
-	if err != nil {
-		return "", err
-	}
-
-	return string(token), nil
-}
-
-func setJWTToken(md metadata.MD) {
-	// test JWT
-	jwtToken, err := getJWTToken()
-	if err != nil {
-		klog.Errorf("getJWTToken error: %v\n", err)
-	} else {
-		klog.Infof("getJWTToken: %s\n", jwtToken)
-		md.Set("Authorization", fmt.Sprintf("Bearer %s", jwtToken))
-	}
-}
 
 func generate() {
 	bitSize := 4096
@@ -109,15 +78,15 @@ func GetTLSConfig() (*tls.Config, error) {
 	//	return nil, fmt.Errorf("failed to create TLS dial option with root certificates")
 	//}
 
-	//if !inited {
-	//	generate()
-	//	inited = true
-	//}
-	//_, err := tls.LoadX509KeyPair(certPath, keyPath)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
+	if !inited {
+		generate()
+		inited = true
+	}
+	clientCert, err := tls.LoadX509KeyPair(certPath, keyPath)
+	if err != nil {
+		panic(err)
+	}
+
 	//kl, err := os.OpenFile(keyLogFileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	//if err != nil {
 	//	return nil, err
@@ -129,7 +98,7 @@ func GetTLSConfig() (*tls.Config, error) {
 		// used to verify the server certificate
 		//RootCAs:            rootCertPool,
 		InsecureSkipVerify: true,
-		Certificates:       nil, //[]tls.Certificate{clientCert},
+		Certificates:       []tls.Certificate{clientCert},
 		//KeyLogWriter:       kl,
 	}
 	return cfg, nil
