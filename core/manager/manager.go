@@ -74,7 +74,7 @@ func NewXDSResourceManager(bootstrapConfig *BootstrapConfig, opts ...Option) (*x
 	}
 	// Initial xds client
 	if bootstrapConfig == nil {
-		bootstrapConfig, err = newBootstrapConfig(m.opts.XDSSvrConfig.SvrAddr)
+		bootstrapConfig, err = newBootstrapConfig(m.opts.XDSSvrConfig)
 		if err != nil {
 			return nil, err
 		}
