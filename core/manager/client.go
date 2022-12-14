@@ -18,23 +18,22 @@ package manager
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"runtime/debug"
 	"strings"
 	"sync"
-	"time"
+
+	"github.com/cenkalti/backoff/v4"
 
 	"github.com/kitex-contrib/xds/core/api/kitex_gen/envoy/service/discovery/v3/aggregateddiscoveryservice"
+	"github.com/kitex-contrib/xds/core/manager/auth"
 	"github.com/kitex-contrib/xds/core/xdsresource"
 
-	discoveryv3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
-	"google.golang.org/genproto/googleapis/rpc/status"
-
 	"github.com/cloudwego/kitex/client"
-	"github.com/cloudwego/kitex/pkg/kerrors"
 	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/cloudwego/kitex/pkg/remote/trans/nphttp2/codes"
+	discoveryv3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
+	"google.golang.org/genproto/googleapis/rpc/status"
 )
 
 type (
@@ -43,10 +42,20 @@ type (
 )
 
 // newADSClient constructs a new stream client that communicates with the xds server
-func newADSClient(addr string) (ADSClient, error) {
-	cli, err := aggregateddiscoveryservice.NewClient("xds_servers",
-		client.WithHostPorts(addr),
-	)
+func newADSClient(xdsSvrCfg *XDSServerConfig) (ADSClient, error) {
+	var opts []client.Option
+	opts = append(opts, client.WithHostPorts(xdsSvrCfg.SvrAddr))
+
+	if xdsSvrCfg.XDSAuth {
+		if tlsConfig, err := auth.GetTLSConfig(xdsSvrCfg.SvrAddr); err != nil {
+			return nil, err
+		} else {
+			opts = append(opts, client.WithGRPCTLSConfig(tlsConfig))
+		}
+		opts = append(opts, client.WithMetaHandler(auth.ClientHTTP2JwtHandler))
+	}
+
+	cli, err := aggregateddiscoveryservice.NewClient(xdsSvrCfg.SvrName, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -113,6 +122,7 @@ type xdsClient struct {
 	adsClient        ADSClient
 	adsStream        ADSStream
 	streamClientLock sync.Mutex
+	connectBackoff   backoff.BackOff
 
 	// resourceUpdater is used to update the resource update to the cache.
 	resourceUpdater *xdsResourceManager
@@ -126,7 +136,7 @@ type xdsClient struct {
 // newXdsClient constructs a new xdsClient, which is used to get xds resources from the xds server.
 func newXdsClient(bCfg *BootstrapConfig, updater *xdsResourceManager) (*xdsClient, error) {
 	// build stream client that communicates with the xds server
-	ac, err := newADSClient(bCfg.xdsSvrCfg.SvrAddr)
+	ac, err := newADSClient(bCfg.xdsSvrCfg)
 	if err != nil {
 		return nil, fmt.Errorf("[XDS] client: construct stream client failed, %s", err.Error())
 	}
@@ -134,6 +144,7 @@ func newXdsClient(bCfg *BootstrapConfig, updater *xdsResourceManager) (*xdsClien
 	cli := &xdsClient{
 		config:          bCfg,
 		adsClient:       ac,
+		connectBackoff:  backoff.NewExponentialBackOff(),
 		watchedResource: make(map[xdsresource.ResourceType]map[string]bool),
 		cipResolver:     newNdsResolver(),
 		versionMap:      make(map[xdsresource.ResourceType]string),
@@ -225,6 +236,7 @@ func (c *xdsClient) receiver() {
 		resp, err := c.recv()
 		if err != nil {
 			klog.Errorf("KITEX: [XDS] client, receive failed, error=%s", err)
+			// TODO: reconnect with backoff strategy
 			c.reconnect()
 			continue
 		}
@@ -252,7 +264,11 @@ func (c *xdsClient) run() {
 
 // close the xdsClient
 func (c *xdsClient) close() {
-	close(c.closeCh)
+	select {
+	case <-c.closeCh:
+	default:
+		close(c.closeCh)
+	}
 	if c.adsStream != nil {
 		c.adsStream.Close()
 	}
@@ -276,13 +292,19 @@ func (c *xdsClient) getStreamClient() (ADSStream, error) {
 }
 
 // connect construct a new stream that connects to the xds server
-func (c *xdsClient) connect() (ADSStream, error) {
-	as, err := c.adsClient.StreamAggregatedResources(context.Background())
-	if err != nil {
-		// TODO: optimize the retry of create stream
-		if errors.Is(err, kerrors.ErrGetConnection) {
-			time.Sleep(time.Second)
+func (c *xdsClient) connect() (as ADSStream, err error) {
+	// backoff retry to connect
+	err = backoff.Retry(func() error {
+		stream, retryErr := c.adsClient.StreamAggregatedResources(context.Background())
+		if retryErr != nil {
+			return retryErr
 		}
+		as = stream
+		return nil
+	}, c.connectBackoff)
+	c.connectBackoff.Reset()
+
+	if err != nil {
 		return nil, err
 	}
 	return as, nil
