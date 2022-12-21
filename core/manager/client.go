@@ -44,13 +44,13 @@ type (
 )
 
 // newADSClient constructs a new stream client that communicates with the xds server
-func newADSClient(addr string) (ADSClient, error) {
-	tlsConfig, err := auth.GetTLSConfig()
+func newADSClient(xdsSvrCfg *XDSServerConfig) (ADSClient, error) {
+	tlsConfig, err := auth.GetTLSConfig(xdsSvrCfg.SvrAddr)
 	if err != nil {
 		panic(err)
 	}
-	cli, err := aggregateddiscoveryservice.NewClient("xds_servers",
-		client.WithHostPorts(addr),
+	cli, err := aggregateddiscoveryservice.NewClient(xdsSvrCfg.SvrName,
+		client.WithHostPorts(xdsSvrCfg.SvrAddr),
 		client.WithGRPCTLSConfig(tlsConfig),
 		client.WithMetaHandler(auth.ClientHTTP2JwtHandler),
 	)
@@ -58,6 +58,14 @@ func newADSClient(addr string) (ADSClient, error) {
 		return nil, err
 	}
 	return cli, nil
+}
+
+func parseXdsServerName(addr string) (string, string) {
+	parts := strings.Split(addr, ":")
+	if len(parts) != 2 {
+		panic(fmt.Sprintf("invalid xds service addr: %s", addr))
+	}
+	return parts[0], parts[1]
 }
 
 // ndsResolver is used to resolve the clusterIP, using NDS.
@@ -133,7 +141,7 @@ type xdsClient struct {
 // newXdsClient constructs a new xdsClient, which is used to get xds resources from the xds server.
 func newXdsClient(bCfg *BootstrapConfig, updater *xdsResourceManager) (*xdsClient, error) {
 	// build stream client that communicates with the xds server
-	ac, err := newADSClient(bCfg.xdsSvrCfg.SvrAddr)
+	ac, err := newADSClient(bCfg.xdsSvrCfg)
 	if err != nil {
 		return nil, fmt.Errorf("[XDS] client: construct stream client failed, %s", err.Error())
 	}
@@ -232,6 +240,8 @@ func (c *xdsClient) receiver() {
 		resp, err := c.recv()
 		if err != nil {
 			klog.Errorf("KITEX: [XDS] client, receive failed, error=%s", err)
+			// TODO: reconnect with backoff strategy
+			time.Sleep(time.Second)
 			c.reconnect()
 			continue
 		}

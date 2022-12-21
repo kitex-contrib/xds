@@ -24,7 +24,44 @@ var (
 const (
 	jwtTokenPath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 	jwtTokenKey  = "Authorization"
+
+	clusterIDMetadataKey = "clusterid"
+	clusterIDEnvKey      = "ISTIO_META_CLUSTER_ID"
 )
+
+func (*clientHTTP2JwtHandler) OnConnectStream(ctx context.Context) (context.Context, error) {
+	ri := rpcinfo.GetRPCInfo(ctx)
+	if !isGRPC(ri) {
+		return ctx, nil
+	}
+	var md metadata.MD
+	md, ok := metadata.FromOutgoingContext(ctx)
+	if !ok {
+		md = metadata.MD{}
+	}
+	// Set JWT and clusterID for auth
+	if err := setJWTToken(md); err != nil {
+		return nil, err
+	}
+	md.Set(clusterIDMetadataKey, os.Getenv(clusterIDEnvKey))
+	return metadata.NewOutgoingContext(ctx, md), nil
+}
+
+func (*clientHTTP2JwtHandler) OnReadStream(ctx context.Context) (context.Context, error) {
+	return ctx, nil
+}
+
+func (ch *clientHTTP2JwtHandler) WriteMeta(ctx context.Context, msg remote.Message) (context.Context, error) {
+	return ctx, nil
+}
+
+func (ch *clientHTTP2JwtHandler) ReadMeta(ctx context.Context, msg remote.Message) (context.Context, error) {
+	return ctx, nil
+}
+
+func isGRPC(ri rpcinfo.RPCInfo) bool {
+	return ri.Config().TransportProtocol()&transport.GRPC == transport.GRPC
+}
 
 var jwtTokenValueFmt = func(jwtToken string) string {
 	return fmt.Sprintf("Bearer %s", jwtToken)
@@ -44,41 +81,8 @@ func getJWTToken() (string, error) {
 func setJWTToken(md metadata.MD) error {
 	jwtToken, err := getJWTToken()
 	if err != nil {
-		return fmt.Errorf("getJWTToken error: %v\n", err)
+		return fmt.Errorf("[XDS] clientHTTP2JwtHandler, getJWTToken error=%s\n", err.Error())
 	}
 	md.Set(jwtTokenKey, jwtTokenValueFmt(jwtToken))
 	return nil
-}
-
-func (*clientHTTP2JwtHandler) OnConnectStream(ctx context.Context) (context.Context, error) {
-	ri := rpcinfo.GetRPCInfo(ctx)
-	if !isGRPC(ri) {
-		return ctx, nil
-	}
-	var md metadata.MD
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		md = metadata.MD{}
-	}
-	err := setJWTToken(md)
-	if err != nil {
-		return nil, err
-	}
-	return metadata.NewOutgoingContext(ctx, md), nil
-}
-
-func (*clientHTTP2JwtHandler) OnReadStream(ctx context.Context) (context.Context, error) {
-	return ctx, nil
-}
-
-func (ch *clientHTTP2JwtHandler) WriteMeta(ctx context.Context, msg remote.Message) (context.Context, error) {
-	return ctx, nil
-}
-
-func (ch *clientHTTP2JwtHandler) ReadMeta(ctx context.Context, msg remote.Message) (context.Context, error) {
-	return ctx, nil
-}
-
-func isGRPC(ri rpcinfo.RPCInfo) bool {
-	return ri.Config().TransportProtocol()&transport.GRPC == transport.GRPC
 }
