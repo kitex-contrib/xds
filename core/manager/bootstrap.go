@@ -40,8 +40,9 @@ type BootstrapConfig struct {
 }
 
 type XDSServerConfig struct {
-	SvrAddr string
 	SvrName string
+	SvrAddr string // The address of the xDS server
+	XDSAuth bool   // If this xDS enable the authentication of xDS stream
 }
 
 // newBootstrapConfig constructs the bootstrapConfig
@@ -62,14 +63,6 @@ func newBootstrapConfig(config *XDSServerConfig) (*BootstrapConfig, error) {
 	}
 	// specify the version of istio in case of the canary deployment of istiod
 	istioVersion := os.Getenv(IstioVersion)
-
-	// use default istiod address if not specified
-	if config.SvrAddr == "" {
-		config.SvrAddr = IstiodAddr
-	}
-	if config.SvrName == "" {
-		config.SvrName = IstiodSvrName
-	}
 
 	return &BootstrapConfig{
 		node: &v3core.Node{

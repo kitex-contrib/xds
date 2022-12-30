@@ -28,3 +28,15 @@ func WithXDSServerAddress(address string) manager.Option {
 		},
 	}
 }
+
+// WithXDSServerConfig set the xDS server config.
+func WithXDSServerConfig(cfg *manager.XDSServerConfig) manager.Option {
+	return manager.Option{
+		F: func(o *manager.Options) {
+			if err := manager.CheckXDSSvrConfig(cfg); err != nil {
+				panic(err)
+			}
+			o.XDSSvrConfig = cfg
+		},
+	}
+}

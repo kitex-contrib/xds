@@ -13,6 +13,7 @@ require (
 )
 
 require (
+	github.com/cenkalti/backoff/v4 v4.2.0
 	github.com/cncf/xds/go v0.0.0-20220520190051-1e77728a1eaa // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/kr/pretty v0.3.0 // indirect

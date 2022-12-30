@@ -5,11 +5,36 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/cloudwego/kitex/pkg/remote"
 	"github.com/cloudwego/kitex/pkg/remote/trans/nphttp2/metadata"
 	"github.com/cloudwego/kitex/pkg/rpcinfo"
 	"github.com/cloudwego/kitex/transport"
 )
+
+const (
+	jwtTokenPath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+	jwtTokenKey  = "Authorization"
+
+	clusterIDMetadataKey = "clusterid"
+	clusterIDEnvKey      = "ISTIO_META_CLUSTER_ID"
+)
+
+var (
+	clusterID string
+	jwtToken  string
+)
+
+func init() {
+	// init clusterID
+	clusterID = os.Getenv(clusterIDEnvKey)
+	// watch jwtToken file
+	if token, err := getJWTToken(); err != nil {
+		klog.Errorf("[XDS] Auth, getJWTToken error=%s\n", err.Error())
+	} else {
+		jwtToken = token
+	}
+}
 
 // ClientHTTP2JwtHandler is used to set jwt token to http2 header
 var ClientHTTP2JwtHandler = &clientHTTP2JwtHandler{}
@@ -19,14 +44,6 @@ type clientHTTP2JwtHandler struct{}
 var (
 	_ remote.MetaHandler          = ClientHTTP2JwtHandler
 	_ remote.StreamingMetaHandler = ClientHTTP2JwtHandler
-)
-
-const (
-	jwtTokenPath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
-	jwtTokenKey  = "Authorization"
-
-	clusterIDMetadataKey = "clusterid"
-	clusterIDEnvKey      = "ISTIO_META_CLUSTER_ID"
 )
 
 func (*clientHTTP2JwtHandler) OnConnectStream(ctx context.Context) (context.Context, error) {
@@ -40,10 +57,8 @@ func (*clientHTTP2JwtHandler) OnConnectStream(ctx context.Context) (context.Cont
 		md = metadata.MD{}
 	}
 	// Set JWT and clusterID for auth
-	if err := setJWTToken(md); err != nil {
-		return nil, err
-	}
-	md.Set(clusterIDMetadataKey, os.Getenv(clusterIDEnvKey))
+	md.Set(jwtTokenKey, jwtTokenValueFmt(jwtToken))
+	md.Set(clusterIDMetadataKey, clusterID)
 	return metadata.NewOutgoingContext(ctx, md), nil
 }
 
@@ -76,13 +91,4 @@ func getJWTToken() (string, error) {
 	}
 
 	return string(token), nil
-}
-
-func setJWTToken(md metadata.MD) error {
-	jwtToken, err := getJWTToken()
-	if err != nil {
-		return fmt.Errorf("[XDS] clientHTTP2JwtHandler, getJWTToken error=%s\n", err.Error())
-	}
-	md.Set(jwtTokenKey, jwtTokenValueFmt(jwtToken))
-	return nil
 }
