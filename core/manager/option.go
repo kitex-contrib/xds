@@ -16,6 +16,8 @@
 
 package manager
 
+import "fmt"
+
 type Options struct {
 	XDSSvrConfig *XDSServerConfig
 	DumpPath     string
@@ -31,13 +33,30 @@ type Option struct {
 	F func(o *Options)
 }
 
-func NewOptions(opts []Option) *Options {
-	o := &Options{
+func DefaultOptions() *Options {
+	return &Options{
 		XDSSvrConfig: &XDSServerConfig{
 			SvrAddr: IstiodAddr,
+			SvrName: IstiodSvrName,
+			XDSAuth: false,
 		},
 		DumpPath: defaultDumpPath,
 	}
+}
+
+func NewOptions(opts []Option) *Options {
+	o := DefaultOptions()
 	o.Apply(opts)
 	return o
+}
+
+func CheckXDSSvrConfig(cfg *XDSServerConfig) error {
+	if cfg.SvrAddr == "" {
+		return fmt.Errorf("[XDS] Option: xDS server address should be specified")
+	}
+	if cfg.SvrName == "" {
+		// set default server name
+		cfg.SvrName = IstiodSvrName
+	}
+	return nil
 }

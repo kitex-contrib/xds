@@ -21,6 +21,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/cenkalti/backoff/v4"
+
 	"github.com/kitex-contrib/xds/core/manager/mock"
 	"github.com/kitex-contrib/xds/core/xdsresource"
 
@@ -67,7 +69,7 @@ func Test_newXdsClient(t *testing.T) {
 	c, err := newXdsClient(
 		&BootstrapConfig{
 			node:      &v3core.Node{},
-			xdsSvrCfg: &XDSServerConfig{SvrAddr: address},
+			xdsSvrCfg: &XDSServerConfig{SvrAddr: address, SvrName: IstiodSvrName},
 		},
 		nil,
 	)
@@ -94,7 +96,8 @@ func Test_xdsClient_handleResponse(t *testing.T) {
 			mu:          sync.RWMutex{},
 			opts:        NewOptions(nil),
 		},
-		closeCh: make(chan struct{}),
+		closeCh:        make(chan struct{}),
+		connectBackoff: backoff.NewExponentialBackOff(),
 	}
 	defer c.close()
 
