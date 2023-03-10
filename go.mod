@@ -3,8 +3,8 @@ module github.com/kitex-contrib/xds
 go 1.16
 
 require (
-	github.com/bytedance/gopkg v0.0.0-20220531084716-665b4f21126f
-	github.com/cloudwego/kitex v0.4.2
+	github.com/bytedance/gopkg v0.0.0-20220817015305-b879a72dc90f
+	github.com/cloudwego/kitex v0.5.0
 	github.com/envoyproxy/go-control-plane v0.10.3
 	github.com/golang/protobuf v1.5.2
 	github.com/stretchr/testify v1.8.0
@@ -23,5 +23,3 @@ require (
 	google.golang.org/grpc v1.49.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )
-
-replace github.com/cloudwego/kitex => github.com/ppzqh/kitex v0.0.9-0.20221214081401-61d92d24461b
