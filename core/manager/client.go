@@ -62,14 +62,6 @@ func newADSClient(xdsSvrCfg *XDSServerConfig) (ADSClient, error) {
 	return cli, nil
 }
 
-func parseXdsServerName(addr string) (string, string) {
-	parts := strings.Split(addr, ":")
-	if len(parts) != 2 {
-		panic(fmt.Sprintf("invalid xds service addr: %s", addr))
-	}
-	return parts[0], parts[1]
-}
-
 // ndsResolver is used to resolve the clusterIP, using NDS.
 type ndsResolver struct {
 	lookupTable   map[string][]string
