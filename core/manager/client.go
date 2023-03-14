@@ -234,10 +234,6 @@ func (c *xdsClient) sender(as ADSStream) {
 			case req := <-c.reqCh:
 				if err := as.Send(req); err != nil {
 					klog.Errorf("KITEX: [XDS] client, send failed, error=%s", err)
-					//s := c.handleTransError()
-					//if s != nil {
-					//	as = s
-					//}
 					as = nil
 					continue
 				}
@@ -264,16 +260,11 @@ func (c *xdsClient) receiver(as ADSStream) {
 			return
 		default:
 		}
-		//select {
-		//case s := <-c.streamCh:
-		//	// reconnected, use the new stream
-		//	as = s
-		//}
 		if as != nil {
 			resp, err := as.Recv()
 			if err != nil {
 				klog.Errorf("KITEX: [XDS] client, receive failed, error=%s", err)
-				s := c.handleTransError()
+				s := c.handleTransError(as)
 				if s != nil {
 					as = s
 				}
@@ -337,7 +328,10 @@ func (c *xdsClient) connect() (as ADSStream, err error) {
 }
 
 // handleTransError reconnects and return a new stream.
-func (c *xdsClient) handleTransError() ADSStream {
+func (c *xdsClient) handleTransError(as ADSStream) ADSStream {
+	if as != nil {
+		as.Close()
+	}
 	// create new stream
 	as, err := c.connect()
 	if err != nil {
