@@ -292,11 +292,11 @@ func (m *xdsResourceManager) UpdateRouteConfigResource(up map[string]*xdsresourc
 		}
 	}
 	// remove all resources that are not in the update list
-	for name := range m.cache[xdsresource.RouteConfigType] {
-		if _, ok := up[name]; !ok {
-			delete(m.cache[xdsresource.RouteConfigType], name)
-		}
-	}
+	//for name := range m.cache[xdsresource.RouteConfigType] {
+	//	if _, ok := up[name]; !ok {
+	//		delete(m.cache[xdsresource.RouteConfigType], name)
+	//	}
+	//}
 	// update meta
 	m.updateMeta(xdsresource.RouteConfigType, version)
 }
