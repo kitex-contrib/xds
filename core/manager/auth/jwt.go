@@ -46,7 +46,7 @@ func init() {
 	clusterID = os.Getenv(clusterIDEnvKey)
 	// watch jwtToken file
 	if token, err := getJWTToken(); err != nil {
-		klog.Errorf("[XDS] Auth, getJWTToken error=%s\n", err.Error())
+		klog.Warnf("[XDS] Auth, getJWTToken error=%s. Ignore this log if not deploying on multiple clusters.\n", err.Error())
 	} else {
 		jwtToken = token
 	}

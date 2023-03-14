@@ -98,6 +98,8 @@ func Test_xdsClient_handleResponse(t *testing.T) {
 		},
 		closeCh:        make(chan struct{}),
 		connectBackoff: backoff.NewExponentialBackOff(),
+		streamCh:       make(chan ADSStream),
+		reqCh:          make(chan *discoveryv3.DiscoveryRequest, 1024),
 	}
 	defer c.close()
 

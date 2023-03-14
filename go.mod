@@ -23,3 +23,5 @@ require (
 	google.golang.org/grpc v1.49.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )
+
+replace github.com/cloudwego/kitex => github.com/ppzqh/kitex v0.0.9-0.20230313033410-a9bffdff2fe5
