@@ -111,8 +111,8 @@ func unmarshalCluster(r *any.Any) (string, *ClusterResource, error) {
 	return c.Name, ret, nil
 }
 
-func UnmarshalCDS(rawResources []*any.Any) (map[string]*ClusterResource, error) {
-	ret := make(map[string]*ClusterResource, len(rawResources))
+func UnmarshalCDS(rawResources []*any.Any) (map[string]Resource, error) {
+	ret := make(map[string]Resource, len(rawResources))
 	errMap := make(map[string]error)
 	var errSlice []error
 	for _, r := range rawResources {

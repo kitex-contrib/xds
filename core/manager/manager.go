@@ -240,115 +240,33 @@ func (m *xdsResourceManager) updateMeta(rType xdsresource.ResourceType, version 
 	}
 }
 
-/**
- 	The following functions are invoked by xds client to update the cache.
-	Logics of these functions are the same. Maybe refactor later using Generics.
-*/
-
-// UpdateListenerResource is invoked by client to update the cache
-func (m *xdsResourceManager) UpdateListenerResource(up map[string]*xdsresource.ListenerResource, version string) {
+// UpdateResource is invoked by client to update the cache
+func (m *xdsResourceManager) UpdateResource(rt xdsresource.ResourceType, up map[string]xdsresource.Resource, version string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	for name, res := range up {
-		if _, ok := m.cache[xdsresource.ListenerType]; !ok {
-			m.cache[xdsresource.ListenerType] = make(map[string]xdsresource.Resource)
+		if _, ok := m.cache[rt]; !ok {
+			m.cache[rt] = make(map[string]xdsresource.Resource)
 		}
-		m.cache[xdsresource.ListenerType][name] = res
-		if _, ok := m.notifierMap[xdsresource.ListenerType]; !ok {
+		m.cache[rt][name] = res
+		if _, ok := m.notifierMap[rt]; !ok {
 			continue
 		}
-		if nf, exist := m.notifierMap[xdsresource.ListenerType][name]; exist {
+		if nf, exist := m.notifierMap[rt][name]; exist {
 			nf.notify(nil)
-			delete(m.notifierMap[xdsresource.ListenerType], name)
+			delete(m.notifierMap[rt], name)
 		}
 	}
-	// remove all resources that are not in the new update
-	for name := range m.cache[xdsresource.ListenerType] {
-		if _, ok := up[name]; !ok {
-			delete(m.cache[xdsresource.ListenerType], name)
+
+	if rt.RequireFullADSResponse() {
+		// remove all resources that are not in the new update
+		for name := range m.cache[rt] {
+			if _, ok := up[name]; !ok {
+				delete(m.cache[rt], name)
+			}
 		}
 	}
 	// update meta
-	m.updateMeta(xdsresource.ListenerType, version)
-}
-
-// UpdateRouteConfigResource is invoked by client to update the cache
-func (m *xdsResourceManager) UpdateRouteConfigResource(up map[string]*xdsresource.RouteConfigResource, version string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	for name, res := range up {
-		if _, ok := m.cache[xdsresource.RouteConfigType]; !ok {
-			m.cache[xdsresource.RouteConfigType] = make(map[string]xdsresource.Resource)
-		}
-		m.cache[xdsresource.RouteConfigType][name] = res
-		if _, ok := m.notifierMap[xdsresource.RouteConfigType]; !ok {
-			continue
-		}
-		if nf, exist := m.notifierMap[xdsresource.RouteConfigType][name]; exist {
-			nf.notify(nil)
-			delete(m.notifierMap[xdsresource.RouteConfigType], name)
-		}
-	}
-	// remove all resources that are not in the update list
-	for name := range m.cache[xdsresource.RouteConfigType] {
-		if _, ok := up[name]; !ok {
-			delete(m.cache[xdsresource.RouteConfigType], name)
-		}
-	}
-	// update meta
-	m.updateMeta(xdsresource.RouteConfigType, version)
-}
-
-// UpdateClusterResource is invoked by client to update the cache
-func (m *xdsResourceManager) UpdateClusterResource(up map[string]*xdsresource.ClusterResource, version string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	for name, res := range up {
-		if _, ok := m.cache[xdsresource.ClusterType]; !ok {
-			m.cache[xdsresource.ClusterType] = make(map[string]xdsresource.Resource)
-		}
-		m.cache[xdsresource.ClusterType][name] = res
-		if _, ok := m.notifierMap[xdsresource.ClusterType]; !ok {
-			continue
-		}
-		if nf, exist := m.notifierMap[xdsresource.ClusterType][name]; exist {
-			nf.notify(nil)
-			delete(m.notifierMap[xdsresource.ClusterType], name)
-		}
-	}
-	// remove all resources that are not in the update list
-	for name := range m.cache[xdsresource.ClusterType] {
-		if _, ok := up[name]; !ok {
-			delete(m.cache[xdsresource.ClusterType], name)
-		}
-	}
-	// update meta
-	m.updateMeta(xdsresource.ClusterType, version)
-}
-
-// UpdateEndpointsResource is invoked by client to update the cache
-func (m *xdsResourceManager) UpdateEndpointsResource(up map[string]*xdsresource.EndpointsResource, version string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	for name, res := range up {
-		if _, ok := m.cache[xdsresource.EndpointsType]; !ok {
-			m.cache[xdsresource.EndpointsType] = make(map[string]xdsresource.Resource)
-		}
-		m.cache[xdsresource.EndpointsType][name] = res
-		if _, ok := m.notifierMap[xdsresource.EndpointsType]; !ok {
-			continue
-		}
-		if nf, exist := m.notifierMap[xdsresource.EndpointsType][name]; exist {
-			nf.notify(nil)
-			delete(m.notifierMap[xdsresource.EndpointsType], name)
-		}
-	}
-	// endpoints cannot be removed in this case because Istio will perform incremental update of EDS.
-
-	// update meta
-	m.updateMeta(xdsresource.EndpointsType, version)
+	m.updateMeta(rt, version)
 }
