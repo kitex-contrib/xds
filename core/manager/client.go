@@ -368,11 +368,13 @@ func (c *xdsClient) handleLDS(resp *discoveryv3.DiscoveryResponse) error {
 	// we need to filter the response.
 	c.mu.RLock()
 	filteredRes := make(map[string]xdsresource.Resource)
+	klog.Infof("Receive xDS Response, type:%s\n", resp.TypeUrl)
 	for n := range c.watchedResource[xdsresource.ListenerType] {
 		ln, err := c.getListenerName(n)
 		if err != nil || ln == "" {
 			continue
 		}
+		klog.Infof("Receive: resource name: %s\n", n)
 		if lis, ok := res[ln]; ok {
 			filteredRes[n] = lis
 		}
@@ -417,7 +419,9 @@ func (c *xdsClient) handleCDS(resp *discoveryv3.DiscoveryResponse) error {
 
 	// filter the resources that are not in the watched list
 	c.mu.RLock()
+	klog.Infof("Receive xDS Response, type:%s\n", resp.TypeUrl)
 	for name := range res {
+		klog.Infof("Receive: resource name: %s\n", name)
 		if _, ok := c.watchedResource[xdsresource.ClusterType][name]; !ok {
 			delete(res, name)
 		}
@@ -438,7 +442,9 @@ func (c *xdsClient) handleEDS(resp *discoveryv3.DiscoveryResponse) error {
 
 	// filter the resources that are not in the watched list
 	c.mu.RLock()
+	klog.Infof("Receive xDS Response, type:%s\n", resp.TypeUrl)
 	for name := range res {
+		klog.Infof("Receive: resource name: %s\n", name)
 		if _, ok := c.watchedResource[xdsresource.EndpointsType][name]; !ok {
 			delete(res, name)
 		}
@@ -451,6 +457,10 @@ func (c *xdsClient) handleEDS(resp *discoveryv3.DiscoveryResponse) error {
 
 func (c *xdsClient) handleNDS(resp *discoveryv3.DiscoveryResponse) error {
 	nt, err := xdsresource.UnmarshalNDS(resp.GetResources())
+	klog.Infof("Receive xDS Response, type:%s\n", resp.TypeUrl)
+	for n := range nt.NameTable {
+		klog.Infof("Receive: resource name: %s\n", n)
+	}
 	c.updateAndACK(xdsresource.NameTableType, resp.GetNonce(), resp.GetVersionInfo(), err)
 	if err != nil {
 		return err
