@@ -175,6 +175,7 @@ func (c *xdsClient) Watch(rType xdsresource.ResourceType, rName string, remove b
 	// prepare resource name
 	req := c.prepareRequest(rType, c.versionMap[rType], c.nonceMap[rType], c.watchedResource[rType])
 	// send request for this resource
+	klog.Infof("Send Request, type:%s, resources:%s\n", req.TypeUrl, req.ResourceNames)
 	c.sendRequest(req)
 }
 
@@ -416,7 +417,9 @@ func (c *xdsClient) handleRDS(resp *discoveryv3.DiscoveryResponse) error {
 
 	// filter the resources that are not in the watched list
 	c.mu.RLock()
+	klog.Infof("Receive xDS Response, type:%s\n", resp.TypeUrl)
 	for name := range res {
+		klog.Infof("Receive: resource name: %s\n", name)
 		// only accept the routeConfig that is subscribed
 		if _, ok := c.watchedResource[xdsresource.RouteConfigType][name]; !ok {
 			delete(res, name)
@@ -472,6 +475,10 @@ func (c *xdsClient) handleEDS(resp *discoveryv3.DiscoveryResponse) error {
 
 func (c *xdsClient) handleNDS(resp *discoveryv3.DiscoveryResponse) error {
 	nt, err := xdsresource.UnmarshalNDS(resp.GetResources())
+	klog.Infof("Receive xDS Response, type:%s\n", resp.TypeUrl)
+	for n := range nt.NameTable {
+		klog.Infof("Receive: resource name: %s\n", n)
+	}
 	c.updateAndACK(xdsresource.NameTableType, resp.GetNonce(), resp.GetVersionInfo(), err)
 	if err != nil {
 		return err
