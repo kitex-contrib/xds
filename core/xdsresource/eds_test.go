@@ -29,13 +29,13 @@ func TestUnmarshalEDSError(t *testing.T) {
 	tests := []struct {
 		name         string
 		rawResources []*any.Any
-		want         map[string]*EndpointsResource
+		want         map[string]Resource
 		wantErr      bool
 	}{
 		{
 			name:         "resource is nil",
 			rawResources: nil,
-			want:         map[string]*EndpointsResource{},
+			want:         map[string]Resource{},
 			wantErr:      false,
 		},
 		{
@@ -43,7 +43,7 @@ func TestUnmarshalEDSError(t *testing.T) {
 			rawResources: []*any.Any{
 				{TypeUrl: ListenerTypeURL, Value: []byte{}},
 			},
-			want:    map[string]*EndpointsResource{},
+			want:    map[string]Resource{},
 			wantErr: true,
 		},
 	}
@@ -71,7 +71,7 @@ func TestUnmarshalEDSSuccess(t *testing.T) {
 	got, err := UnmarshalEDS(rawResources)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(got))
-	cla := got[EndpointName1]
+	cla := got[EndpointName1].(*EndpointsResource)
 	assert.NotNil(t, cla)
 	assert.Equal(t, 1, len(cla.Localities))
 	assert.Equal(t, 2, len(cla.Localities[0].Endpoints))

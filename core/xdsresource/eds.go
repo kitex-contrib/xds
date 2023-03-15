@@ -100,8 +100,8 @@ func parseClusterLoadAssignment(cla *v3endpointpb.ClusterLoadAssignment) (*Endpo
 	}, nil
 }
 
-func UnmarshalEDS(rawResources []*any.Any) (map[string]*EndpointsResource, error) {
-	ret := make(map[string]*EndpointsResource, len(rawResources))
+func UnmarshalEDS(rawResources []*any.Any) (map[string]Resource, error) {
+	ret := make(map[string]Resource, len(rawResources))
 	errMap := make(map[string]error)
 	var errSlice []error
 	for _, r := range rawResources {

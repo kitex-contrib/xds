@@ -413,7 +413,7 @@ func (c *xdsClient) handleLDS(resp *discoveryv3.DiscoveryResponse) error {
 	// which should be converted into to the listener name, in the form of ${fqdn}_${port}, watched by the xds client.
 	// we need to filter the response.
 	c.mu.RLock()
-	filteredRes := make(map[string]*xdsresource.ListenerResource)
+	filteredRes := make(map[string]xdsresource.Resource)
 	for n := range c.watchedResource[xdsresource.ListenerType] {
 		if c.ndsRequired() {
 			ln, err := c.getListenerName(n)
@@ -429,7 +429,7 @@ func (c *xdsClient) handleLDS(resp *discoveryv3.DiscoveryResponse) error {
 	}
 	c.mu.RUnlock()
 	// update to cache
-	c.resourceUpdater.UpdateListenerResource(filteredRes, resp.GetVersionInfo())
+	c.resourceUpdater.UpdateResource(xdsresource.ListenerType, filteredRes, resp.GetVersionInfo())
 	return nil
 }
 
@@ -451,7 +451,7 @@ func (c *xdsClient) handleRDS(resp *discoveryv3.DiscoveryResponse) error {
 	}
 	c.mu.RUnlock()
 	// update to cache
-	c.resourceUpdater.UpdateRouteConfigResource(res, resp.GetVersionInfo())
+	c.resourceUpdater.UpdateResource(xdsresource.RouteConfigType, res, resp.GetVersionInfo())
 	return nil
 }
 
@@ -472,7 +472,7 @@ func (c *xdsClient) handleCDS(resp *discoveryv3.DiscoveryResponse) error {
 	}
 	c.mu.RUnlock()
 	// update to cache
-	c.resourceUpdater.UpdateClusterResource(res, resp.GetVersionInfo())
+	c.resourceUpdater.UpdateResource(xdsresource.ClusterType, res, resp.GetVersionInfo())
 	return nil
 }
 
@@ -493,7 +493,7 @@ func (c *xdsClient) handleEDS(resp *discoveryv3.DiscoveryResponse) error {
 	}
 	c.mu.RUnlock()
 	// update to cache
-	c.resourceUpdater.UpdateEndpointsResource(res, resp.GetVersionInfo())
+	c.resourceUpdater.UpdateResource(xdsresource.EndpointsType, res, resp.GetVersionInfo())
 	return nil
 }
 

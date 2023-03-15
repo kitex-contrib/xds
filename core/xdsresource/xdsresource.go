@@ -42,6 +42,12 @@ const (
 	NameTableType
 )
 
+// RequireFullADSResponse returns if a full response is required for every update.
+func (rt ResourceType) RequireFullADSResponse() bool {
+	// the RDS/EDS responses are allowed to only include part of the resources
+	return rt == ListenerType || rt == ClusterType
+}
+
 // Resource types in xDS v3.
 const (
 	apiTypePrefix          = "type.googleapis.com/"
