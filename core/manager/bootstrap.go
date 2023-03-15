@@ -67,7 +67,7 @@ func newBootstrapConfig(config *XDSServerConfig) (*BootstrapConfig, error) {
 	return &BootstrapConfig{
 		node: &v3core.Node{
 			//"sidecar~" + podIP + "~" + podName + "." + namespace + "~" + namespace + ".svc.cluster.local",
-			Id: fmt.Sprintf("sidecar~%s~%s.%s~%s.%s", podIP, podName, namespace, namespace, nodeIDSuffix),
+			Id: fmt.Sprintf("sidecar~%s~%s-kitex-proxyless.%s~%s.%s", podIP, podName, namespace, namespace, nodeIDSuffix),
 			Metadata: &structpb.Struct{
 				Fields: map[string]*structpb.Value{
 					"ISTIO_VERSION": {
