@@ -223,6 +223,9 @@ func (c *xdsClient) sender(as ADSStream) {
 	// 2. construct a new stream when getting errors (EOF?)
 	for {
 		select {
+		case <-c.closeCh:
+			klog.Infof("KITEX: [XDS] client, stop ads client sender")
+			return
 		case s := <-c.streamCh:
 			// new stream, send request with non version and nonce
 			as = s
@@ -263,8 +266,7 @@ func (c *xdsClient) receiver(as ADSStream) {
 		if as != nil {
 			resp, err := as.Recv()
 			if err != nil {
-				klog.Errorf("KITEX: [XDS] client, receive failed, error=%s", err)
-				s := c.handleTransError(as)
+				s := c.handleTransError(as, err)
 				if s != nil {
 					as = s
 				}
@@ -328,9 +330,18 @@ func (c *xdsClient) connect() (as ADSStream, err error) {
 }
 
 // handleTransError reconnects and return a new stream.
-func (c *xdsClient) handleTransError(as ADSStream) ADSStream {
+func (c *xdsClient) handleTransError(as ADSStream, transErr error) ADSStream {
+	if transErr == nil {
+		return as
+	}
 	if as != nil {
 		as.Close()
+	}
+	klog.Errorf("KITEX: [XDS] client, receive failed, error=%s", transErr)
+	if auth.IsAuthError(transErr) {
+		klog.Errorf("KITEX: [XDS] client, authentication of the control plane failed, close the xDS client. Please check the error log in control plane for more details.")
+		c.close()
+		return nil
 	}
 	// create new stream
 	as, err := c.connect()
