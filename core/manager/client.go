@@ -119,10 +119,10 @@ type xdsClient struct {
 	nonceMap map[xdsresource.ResourceType]string
 
 	// adsClient is a kitex client using grpc protocol that can communicate with xds server.
-	adsClient        ADSClient
-	adsStream        ADSStream
-	streamClientLock sync.Mutex
-	connectBackoff   backoff.BackOff
+	adsClient      ADSClient
+	streamCh       chan ADSStream
+	reqCh          chan *discoveryv3.DiscoveryRequest
+	connectBackoff backoff.BackOff
 
 	// resourceUpdater is used to update the resource update to the cache.
 	resourceUpdater *xdsResourceManager
@@ -151,6 +151,8 @@ func newXdsClient(bCfg *BootstrapConfig, updater *xdsResourceManager) (*xdsClien
 		nonceMap:        make(map[xdsresource.ResourceType]string),
 		resourceUpdater: updater,
 		closeCh:         make(chan struct{}),
+		streamCh:        make(chan ADSStream, 1),
+		reqCh:           make(chan *discoveryv3.DiscoveryRequest, 1024),
 	}
 	cli.run()
 	return cli, nil
@@ -216,9 +218,37 @@ func (c *xdsClient) updateAndACK(rType xdsresource.ResourceType, nonce, version 
 	c.sendRequest(req)
 }
 
+func (c *xdsClient) sender(as ADSStream) {
+	// 1. make sure no concurrent send
+	// 2. construct a new stream when getting errors (EOF?)
+	for {
+		select {
+		case <-c.closeCh:
+			klog.Infof("KITEX: [XDS] client, stop ads client sender")
+			return
+		case s := <-c.streamCh:
+			// new stream, send request with non version and nonce
+			as = s
+			c.reqWhenReconnect()
+		default:
+		}
+		if as != nil {
+			select {
+			case req := <-c.reqCh:
+				if err := as.Send(req); err != nil {
+					klog.Errorf("KITEX: [XDS] client, send failed, error=%s", err)
+					as = nil
+					continue
+				}
+			default:
+			}
+		}
+	}
+}
+
 // receiver receives and handle response from the xds server.
 // xds server may proactively push the update.
-func (c *xdsClient) receiver() {
+func (c *xdsClient) receiver(as ADSStream) {
 	// receiver
 	defer func() {
 		if err := recover(); err != nil {
@@ -233,16 +263,19 @@ func (c *xdsClient) receiver() {
 			return
 		default:
 		}
-		resp, err := c.recv()
-		if err != nil {
-			klog.Errorf("KITEX: [XDS] client, receive failed, error=%s", err)
-			// TODO: reconnect with backoff strategy
-			c.reconnect()
-			continue
-		}
-		err = c.handleResponse(resp)
-		if err != nil {
-			klog.Errorf("KITEX: [XDS] client, handle response failed, error=%s", err)
+		if as != nil {
+			resp, err := as.Recv()
+			if err != nil {
+				s := c.handleTransError(as, err)
+				if s != nil {
+					as = s
+				}
+				continue
+			}
+			err = c.handleResponse(resp)
+			if err != nil {
+				klog.Errorf("KITEX: [XDS] client, handle response failed, error=%s", err)
+			}
 		}
 	}
 }
@@ -258,7 +291,13 @@ func (c *xdsClient) warmup() {
 
 func (c *xdsClient) run() {
 	// run receiver
-	go c.receiver()
+	as, err := c.connect()
+	if err != nil {
+		klog.Errorf("[XDS] client, failed to connect the xDS Server, error=%s", err.Error())
+		return
+	}
+	go c.sender(as)
+	go c.receiver(as)
 	c.warmup()
 }
 
@@ -269,26 +308,6 @@ func (c *xdsClient) close() {
 	default:
 		close(c.closeCh)
 	}
-	if c.adsStream != nil {
-		c.adsStream.Close()
-	}
-}
-
-// getStreamClient returns the adsClient of xdsClient
-func (c *xdsClient) getStreamClient() (ADSStream, error) {
-	c.streamClientLock.Lock()
-	defer c.streamClientLock.Unlock()
-	// get stream client
-	if c.adsStream != nil {
-		return c.adsStream, nil
-	}
-	// connect
-	as, err := c.connect()
-	if err != nil {
-		return nil, err
-	}
-	c.adsStream = as
-	return c.adsStream, nil
 }
 
 // connect construct a new stream that connects to the xds server
@@ -310,54 +329,48 @@ func (c *xdsClient) connect() (as ADSStream, err error) {
 	return as, nil
 }
 
-// reconnect construct a new stream and send all the watched resources
-func (c *xdsClient) reconnect() error {
-	c.streamClientLock.Lock()
-	defer c.streamClientLock.Unlock()
-	// close old stream
-	if c.adsStream != nil {
-		c.adsStream.Close()
+// handleTransError reconnects and return a new stream.
+func (c *xdsClient) handleTransError(as ADSStream, transErr error) ADSStream {
+	if transErr == nil {
+		return as
+	}
+	if as != nil {
+		as.Close()
+	}
+	klog.Errorf("KITEX: [XDS] client, receive failed, error=%s", transErr)
+	if auth.IsAuthError(transErr) {
+		klog.Errorf("KITEX: [XDS] client, authentication of the control plane failed, close the xDS client. Please check the error log in control plane for more details.")
+		c.close()
+		return nil
 	}
 	// create new stream
 	as, err := c.connect()
 	if err != nil {
-		return err
+		klog.Errorf("KITEX: [XDS] client, reqWhenReconnect failed, error=%s", err)
+		return nil
 	}
-	c.adsStream = as
+	// notify others to use the new stream
+	c.streamCh <- as
+	return as
+}
 
-	// reset the version map, nonce map and send new requests when reconnect
+// reqWhenReconnect construct a new stream and send all the watched resources
+func (c *xdsClient) reqWhenReconnect() {
+	// reset the version map, nonce map and send new requests when reqWhenReconnect
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.versionMap = make(map[xdsresource.ResourceType]string)
 	c.nonceMap = make(map[xdsresource.ResourceType]string)
 	for rType, res := range c.watchedResource {
 		req := c.prepareRequest(rType, c.versionMap[rType], c.nonceMap[rType], res)
-		_ = c.adsStream.Send(req)
+		c.sendRequest(req)
 	}
-	return nil
 }
 
 func (c *xdsClient) sendRequest(req *discoveryv3.DiscoveryRequest) {
-	// get stream client
-	sc, err := c.getStreamClient()
-	if err != nil {
-		klog.Errorf("KITEX: [XDS] client, get stream client failed, error=%s", err)
-		return
-	}
-	err = sc.Send(req)
-	if err != nil {
-		klog.Errorf("KITEX: [XDS] client, send failed, error=%s", err)
-	}
-}
-
-// recv uses stream client to receive the response from the xds server
-func (c *xdsClient) recv() (resp *discoveryv3.DiscoveryResponse, err error) {
-	sc, err := c.getStreamClient()
-	if err != nil {
-		return nil, err
-	}
-	resp, err = sc.Recv()
-	return resp, err
+	// put the req to the channel
+	// TODO: the request maybe outdated if the stream reconnect.
+	c.reqCh <- req
 }
 
 // getListenerName returns the listener name in this format: ${clusterIP}_${port}
