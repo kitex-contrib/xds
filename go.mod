@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/bytedance/gopkg v0.0.0-20220817015305-b879a72dc90f
-	github.com/cloudwego/kitex v0.5.0
+	github.com/cloudwego/kitex v0.5.1
 	github.com/envoyproxy/go-control-plane v0.10.3
 	github.com/golang/protobuf v1.5.2
 	github.com/stretchr/testify v1.8.0
