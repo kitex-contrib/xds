@@ -32,29 +32,29 @@ import (
 
 // for test use
 var (
-	XdsSercerAddress = ":8889"
-	NodeProto        = &v3core.Node{
+	xdsSercerAddress = ":8889"
+	nodeProto        = &v3core.Node{
 		Id: "sidecar~kitex-test-node",
 	}
-	XdsServerConfig = &XDSServerConfig{
-		SvrAddr: XdsSercerAddress,
+	xdsServerConfig = &XDSServerConfig{
+		SvrAddr: xdsSercerAddress,
 		SvrName: IstiodSvrName,
 	}
-	XdsBootstrapConfig = &BootstrapConfig{
-		node:      NodeProto,
-		xdsSvrCfg: XdsServerConfig,
+	xdsBootstrapConfig = &BootstrapConfig{
+		node:      nodeProto,
+		xdsSvrCfg: xdsServerConfig,
 	}
 )
 
 func Test_xdsResourceManager_Get(t *testing.T) {
 	// Init
-	svr := mock.StartXDSServer(XdsSercerAddress)
+	svr := mock.StartXDSServer(xdsSercerAddress)
 	defer func() {
 		if svr != nil {
 			_ = svr.Stop()
 		}
 	}()
-	m, err := NewXDSResourceManager(XdsBootstrapConfig)
+	m, err := NewXDSResourceManager(xdsBootstrapConfig)
 	assert.Nil(t, err)
 
 	type args struct {
@@ -172,13 +172,13 @@ func Test_xdsResourceManager_Get(t *testing.T) {
 
 func Test_xdsResourceManager_Get_Resource_Update(t *testing.T) {
 	// Init
-	svr := mock.StartXDSServer(XdsSercerAddress)
+	svr := mock.StartXDSServer(xdsSercerAddress)
 	defer func() {
 		if svr != nil {
 			_ = svr.Stop()
 		}
 	}()
-	m, initErr := NewXDSResourceManager(XdsBootstrapConfig)
+	m, initErr := NewXDSResourceManager(xdsBootstrapConfig)
 	assert.Nil(t, initErr)
 
 	var res xdsresource.Resource
@@ -266,13 +266,13 @@ func Test_xdsResourceManager_getFromCache(t *testing.T) {
 }
 
 func Test_xdsResourceManager_ConcurrentGet(t *testing.T) {
-	svr := mock.StartXDSServer(XdsSercerAddress)
+	svr := mock.StartXDSServer(xdsSercerAddress)
 	defer func() {
 		if svr != nil {
 			_ = svr.Stop()
 		}
 	}()
-	m, initErr := NewXDSResourceManager(XdsBootstrapConfig)
+	m, initErr := NewXDSResourceManager(xdsBootstrapConfig)
 	assert.Nil(t, initErr)
 
 	g := func(t2 *testing.T) {

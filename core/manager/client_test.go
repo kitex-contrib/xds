@@ -22,7 +22,9 @@ import (
 	"testing"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/envoyproxy/go-control-plane/pkg/server/v3"
 
+	"github.com/kitex-contrib/xds/core/internal/e2e"
 	"github.com/kitex-contrib/xds/core/manager/mock"
 	"github.com/kitex-contrib/xds/core/xdsresource"
 
@@ -60,16 +62,16 @@ func (sc *mockADSStream) Close() error {
 
 func Test_newXdsClient(t *testing.T) {
 	address := ":8889"
-	svr := mock.StartXDSServer(address)
+	svr := e2e.NewXDSServer(address, server.CallbackFuncs{})
 	defer func() {
 		if svr != nil {
-			_ = svr.Stop()
+			svr.Stop()
 		}
 	}()
 	c, err := newXdsClient(
 		&BootstrapConfig{
 			node:      &v3core.Node{},
-			xdsSvrCfg: &XDSServerConfig{SvrAddr: address, SvrName: IstiodSvrName},
+			xdsSvrCfg: &XDSServerConfig{SvrAddr: address, SvrName: IstiodSvrName, NDSNotRequired: true},
 		},
 		nil,
 	)
@@ -81,8 +83,8 @@ func Test_xdsClient_handleResponse(t *testing.T) {
 	// inject mock
 	c := &xdsClient{
 		config: &BootstrapConfig{
-			node:      NodeProto,
-			xdsSvrCfg: XdsServerConfig,
+			node:      nodeProto,
+			xdsSvrCfg: xdsServerConfig,
 		},
 		adsClient:       &mockADSClient{},
 		watchedResource: make(map[xdsresource.ResourceType]map[string]bool),

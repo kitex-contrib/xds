@@ -40,9 +40,10 @@ type BootstrapConfig struct {
 }
 
 type XDSServerConfig struct {
-	SvrName string
-	SvrAddr string // The address of the xDS server
-	XDSAuth bool   // If this xDS enable the authentication of xDS stream
+	SvrName        string
+	SvrAddr        string // The address of the xDS server
+	XDSAuth        bool   // If this xDS enable the authentication of xDS stream
+	NDSNotRequired bool   // required by default for Istio
 }
 
 // newBootstrapConfig constructs the bootstrapConfig

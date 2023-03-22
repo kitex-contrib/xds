@@ -280,13 +280,17 @@ func (c *xdsClient) receiver(as ADSStream) {
 	}
 }
 
-// warmup sends the requests (NDS) to the xds server and waits for the response to set the lookup table.
-func (c *xdsClient) warmup() {
+// ndsRequired returns if nds is required before lds.
+func (c *xdsClient) ndsRequired() bool {
+	return !c.config.xdsSvrCfg.NDSNotRequired
+}
+
+// ndsWarmup sends the requests (NDS) to the xds server and waits for the response to set the lookup table.
+func (c *xdsClient) ndsWarmup() {
 	// watch the NameTable when init the xds client
 	c.Watch(xdsresource.NameTableType, "", false)
 	<-c.cipResolver.initRequestCh
 	klog.Infof("KITEX: [XDS] client, warmup done")
-	// TODO: maybe need to watch the listener
 }
 
 func (c *xdsClient) run() {
@@ -298,7 +302,9 @@ func (c *xdsClient) run() {
 	}
 	go c.sender(as)
 	go c.receiver(as)
-	c.warmup()
+	if c.ndsRequired() {
+		c.ndsWarmup()
+	}
 }
 
 // close the xdsClient
@@ -403,12 +409,16 @@ func (c *xdsClient) handleLDS(resp *discoveryv3.DiscoveryResponse) error {
 	c.mu.RLock()
 	filteredRes := make(map[string]*xdsresource.ListenerResource)
 	for n := range c.watchedResource[xdsresource.ListenerType] {
-		ln, err := c.getListenerName(n)
-		if err != nil || ln == "" {
-			continue
-		}
-		if lis, ok := res[ln]; ok {
-			filteredRes[n] = lis
+		if c.ndsRequired() {
+			ln, err := c.getListenerName(n)
+			if err != nil || ln == "" {
+				continue
+			}
+			if lis, ok := res[ln]; ok {
+				filteredRes[n] = lis
+			}
+		} else {
+			filteredRes[n] = res[n]
 		}
 	}
 	c.mu.RUnlock()
