@@ -21,6 +21,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/cenkalti/backoff/v4"
+
 	"github.com/kitex-contrib/xds/core/manager/mock"
 	"github.com/kitex-contrib/xds/core/xdsresource"
 
@@ -94,7 +96,10 @@ func Test_xdsClient_handleResponse(t *testing.T) {
 			mu:          sync.RWMutex{},
 			opts:        NewOptions(nil),
 		},
-		closeCh: make(chan struct{}),
+		closeCh:        make(chan struct{}),
+		connectBackoff: backoff.NewExponentialBackOff(),
+		streamCh:       make(chan ADSStream),
+		reqCh:          make(chan *discoveryv3.DiscoveryRequest, 1024),
 	}
 	defer c.close()
 
