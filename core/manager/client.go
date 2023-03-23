@@ -210,6 +210,7 @@ func (c *xdsClient) updateAndACK(rType xdsresource.ResourceType, nonce, version 
 func (c *xdsClient) sender(as ADSStream) {
 	// 1. make sure no concurrent send
 	// 2. construct a new stream when getting errors (EOF?)
+	currStream := as
 	for {
 		select {
 		case <-c.closeCh:
@@ -217,16 +218,18 @@ func (c *xdsClient) sender(as ADSStream) {
 			return
 		case s := <-c.streamCh:
 			// new stream, send request with non version and nonce
-			as = s
-			c.reqWhenReconnect()
+			currStream = s
+			if err := c.reqWhenReconnect(currStream); err != nil {
+				currStream = nil
+			}
 		default:
 		}
-		if as != nil {
+		if currStream != nil {
 			select {
 			case req := <-c.reqCh:
-				if err := as.Send(req); err != nil {
+				if err := currStream.Send(req); err != nil {
 					klog.Errorf("KITEX: [XDS] client, send failed, error=%s", err)
-					as = nil
+					currStream = nil
 					continue
 				}
 			default:
@@ -245,6 +248,7 @@ func (c *xdsClient) receiver(as ADSStream) {
 		}
 	}()
 
+	currStream := as
 	for {
 		select {
 		case <-c.closeCh:
@@ -252,12 +256,13 @@ func (c *xdsClient) receiver(as ADSStream) {
 			return
 		default:
 		}
-		if as != nil {
-			resp, err := as.Recv()
+		if currStream != nil {
+			resp, err := currStream.Recv()
 			if err != nil {
-				s := c.handleTransError(as, err)
-				if s != nil {
-					as = s
+				klog.Errorf("KITEX: [XDS] client, receive failed, error=%s", err)
+				currStream.Close()
+				if s, e := c.reconnect(); e == nil {
+					currStream = s
 				}
 				continue
 			}
@@ -318,37 +323,37 @@ func (c *xdsClient) connect() (as ADSStream, err error) {
 	return as, nil
 }
 
-// handleTransError reconnects and return a new stream.
-func (c *xdsClient) handleTransError(as ADSStream, transErr error) ADSStream {
-	if transErr == nil {
-		return as
-	}
-	if as != nil {
-		as.Close()
-	}
-	klog.Errorf("KITEX: [XDS] client, receive failed, error=%s", transErr)
+// reconnect
+func (c *xdsClient) reconnect() (ADSStream, error) {
 	// create new stream
 	as, err := c.connect()
 	if err != nil {
-		klog.Errorf("KITEX: [XDS] client, reqWhenReconnect failed, error=%s", err)
-		return nil
+		klog.Errorf("KITEX: [XDS] client, reconnect failed, error=%s", err)
+		return nil, err
 	}
+	// reset nonce map
+	c.mu.Lock()
+	c.nonceMap = make(map[xdsresource.ResourceType]string)
+	c.mu.Unlock()
+
 	// notify others to use the new stream
 	c.streamCh <- as
-	return as
+	return as, nil
 }
 
 // reqWhenReconnect construct a new stream and send all the watched resources
-func (c *xdsClient) reqWhenReconnect() {
-	// reset the version map, nonce map and send new requests when reqWhenReconnect
+func (c *xdsClient) reqWhenReconnect(as ADSStream) error {
+	// send new requests for all watched resources when reqWhenReconnect
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.versionMap = make(map[xdsresource.ResourceType]string)
-	c.nonceMap = make(map[xdsresource.ResourceType]string)
 	for rType, res := range c.watchedResource {
 		req := c.prepareRequest(rType, c.versionMap[rType], c.nonceMap[rType], res)
-		c.sendRequest(req)
+		if err := as.Send(req); err != nil {
+			// return err if send failed
+			return err
+		}
 	}
+	return nil
 }
 
 func (c *xdsClient) sendRequest(req *discoveryv3.DiscoveryRequest) {
