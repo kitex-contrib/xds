@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/cenkalti/backoff/v4"
 
@@ -33,6 +34,20 @@ import (
 	discoveryv3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 
 	"github.com/cloudwego/kitex/client/callopt"
+)
+
+var (
+	mockUpdater = &xdsResourceManager{
+		cache:       map[xdsresource.ResourceType]map[string]xdsresource.Resource{},
+		meta:        make(map[xdsresource.ResourceType]map[string]*xdsresource.ResourceMeta),
+		notifierMap: make(map[xdsresource.ResourceType]map[string]*notifier),
+		mu:          sync.RWMutex{},
+		opts:        NewOptions(nil),
+	}
+	mockBootstrapConfig = &BootstrapConfig{
+		node:      NodeProto,
+		xdsSvrCfg: XdsServerConfig,
+	}
 )
 
 type mockADSClient struct {
@@ -55,18 +70,6 @@ type streamOpt struct {
 	closeFunc func() error
 }
 
-var (
-	sendFailedFunc = func(*discoveryv3.DiscoveryRequest) error {
-		return fmt.Errorf("mock send failed")
-	}
-	recvFailedFunc = func() (*discoveryv3.DiscoveryResponse, error) {
-		return nil, fmt.Errorf("mock recv failed")
-	}
-	mockCloseFunc = func() error {
-		return nil
-	}
-)
-
 func (sc *mockADSStream) Send(req *discoveryv3.DiscoveryRequest) error {
 	if sc.opt != nil && sc.opt.sendFunc != nil {
 		return sc.opt.sendFunc(req)
@@ -87,20 +90,6 @@ func (sc *mockADSStream) Close() error {
 	}
 	return nil
 }
-
-var (
-	mockUpdater = &xdsResourceManager{
-		cache:       map[xdsresource.ResourceType]map[string]xdsresource.Resource{},
-		meta:        make(map[xdsresource.ResourceType]map[string]*xdsresource.ResourceMeta),
-		notifierMap: make(map[xdsresource.ResourceType]map[string]*notifier),
-		mu:          sync.RWMutex{},
-		opts:        NewOptions(nil),
-	}
-	mockBootstrapConfig = &BootstrapConfig{
-		node:      NodeProto,
-		xdsSvrCfg: XdsServerConfig,
-	}
-)
 
 func Test_newXdsClient(t *testing.T) {
 	address := ":8889"
@@ -131,7 +120,8 @@ func Test_xdsClient_handleResponse(t *testing.T) {
 		nonceMap:        make(map[xdsresource.ResourceType]string),
 		resourceUpdater: mockUpdater,
 		closeCh:         make(chan struct{}),
-		streamCh:        make(chan *adsStreamWrapper, 1),
+		streamCh:        make(chan ADSStream, 1),
+		reqCh:           make(chan *discoveryv3.DiscoveryRequest, 1024),
 	}
 	defer c.close()
 
@@ -156,18 +146,69 @@ func Test_xdsClient_handleResponse(t *testing.T) {
 }
 
 func TestReconnect(t *testing.T) {
+	// used to control the func
+	type mockStatus struct {
+		err error
+	}
+	sendCh := make(chan *mockStatus)
+	recvCh := make(chan *mockStatus)
+	sendCnt, recvCnt := 0, 0
+	closed := false
+	defer func() {
+		close(sendCh)
+		close(recvCh)
+	}()
+
 	ac := &mockADSClient{
 		opt: &streamOpt{
-			sendFunc: func(*discoveryv3.DiscoveryRequest) error {
-				return fmt.Errorf("mock send failed")
+			sendFunc: func(req *discoveryv3.DiscoveryRequest) error {
+				sendCnt++
+				return nil
 			},
 			recvFunc: func() (response *discoveryv3.DiscoveryResponse, err error) {
-				ch := make(chan struct{})
-				defer close(ch)
-				<-ch
-				return nil, nil
+				s := <-recvCh
+				recvCnt++
+				if s.err != nil {
+					return nil, s.err
+				}
+				// handle eds will not trigger new send
+				return mock.EdsResp1, nil
+			},
+			closeFunc: func() error {
+				closed = true
+				return nil
 			},
 		},
 	}
-	_ = ac
+
+	cli, err := newXdsClient(&BootstrapConfig{
+		node: NodeProto,
+		xdsSvrCfg: &XDSServerConfig{
+			SvrAddr:        XdsServerAddress,
+			NDSNotRequired: true,
+		},
+	}, ac, mockUpdater)
+	assert.Nil(t, err)
+	cli.Watch(xdsresource.EndpointsType, xdsresource.EndpointName1, false)
+	// mock recv succeed
+	recvCh <- &mockStatus{err: nil}
+	time.Sleep(10 * time.Millisecond)
+	assert.Equal(t, cli.nonceMap[xdsresource.EndpointsType], mock.EdsResp1.Nonce)
+	// mock recv failed
+	recvCh <- &mockStatus{err: fmt.Errorf("recv failed")}
+	time.Sleep(10 * time.Millisecond)
+	assert.Equal(t, 2, recvCnt)
+	assert.Equal(t, true, closed)
+	assert.Equal(t, 3, sendCnt) // watch/ack and reconnect
+	_ = cli
+}
+
+func TestClearCh(t *testing.T) {
+	ch := make(chan *discoveryv3.DiscoveryRequest, 1024)
+	for i := 0; i < 10; i++ {
+		ch <- &discoveryv3.DiscoveryRequest{}
+	}
+	assert.Equal(t, 10, len(ch))
+	clearRequestCh(ch, 10)
+	assert.Equal(t, 0, len(ch))
 }

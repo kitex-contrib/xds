@@ -39,7 +39,8 @@ type BootstrapConfig struct {
 }
 
 type XDSServerConfig struct {
-	SvrAddr string
+	SvrAddr        string
+	NDSNotRequired bool // required by default for Istio
 }
 
 // newBootstrapConfig constructs the bootstrapConfig
