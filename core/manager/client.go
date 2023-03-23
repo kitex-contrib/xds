@@ -22,6 +22,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/cenkalti/backoff/v4"
 
@@ -86,6 +87,31 @@ func (r *ndsResolver) updateLookupTable(up map[string][]string) {
 	r.lookupTable = up
 }
 
+type adsStreamWrapper struct {
+	stream    ADSStream
+	requestCh chan *discoveryv3.DiscoveryRequest
+}
+
+func (asw *adsStreamWrapper) pushReq(req *discoveryv3.DiscoveryRequest) {
+	asw.requestCh <- req
+}
+
+func newAdsStreamWrapper(s ADSStream) *adsStreamWrapper {
+	return &adsStreamWrapper{stream: s, requestCh: make(chan *discoveryv3.DiscoveryRequest, 1024)}
+}
+
+func (asw *adsStreamWrapper) send() error {
+	select {
+	case req := <-asw.requestCh:
+		if err := asw.stream.Send(req); err != nil {
+			klog.Errorf("KITEX: [XDS] client, send failed, error=%s", err)
+			return err
+		}
+	default:
+	}
+	return nil
+}
+
 // xdsClient communicates with the control plane to perform xds resource discovery.
 // It maintains the connection and all the resources being watched.
 // It processes the responses from the xds server and update the resources to the cache in xdsResourceManager.
@@ -109,8 +135,8 @@ type xdsClient struct {
 
 	// adsClient is a kitex client using grpc protocol that can communicate with xds server.
 	adsClient      ADSClient
-	streamCh       chan ADSStream
-	reqCh          chan *discoveryv3.DiscoveryRequest
+	streamCh       chan *adsStreamWrapper
+	streamWrapper  atomic.Value
 	connectBackoff backoff.BackOff
 
 	// resourceUpdater is used to update the resource update to the cache.
@@ -123,13 +149,7 @@ type xdsClient struct {
 }
 
 // newXdsClient constructs a new xdsClient, which is used to get xds resources from the xds server.
-func newXdsClient(bCfg *BootstrapConfig, updater *xdsResourceManager) (*xdsClient, error) {
-	// build stream client that communicates with the xds server
-	ac, err := newADSClient(bCfg.xdsSvrCfg.SvrAddr)
-	if err != nil {
-		return nil, fmt.Errorf("[XDS] client: construct stream client failed, %s", err.Error())
-	}
-
+func newXdsClient(bCfg *BootstrapConfig, ac ADSClient, updater *xdsResourceManager) (*xdsClient, error) {
 	cli := &xdsClient{
 		config:          bCfg,
 		adsClient:       ac,
@@ -140,8 +160,7 @@ func newXdsClient(bCfg *BootstrapConfig, updater *xdsResourceManager) (*xdsClien
 		nonceMap:        make(map[xdsresource.ResourceType]string),
 		resourceUpdater: updater,
 		closeCh:         make(chan struct{}),
-		streamCh:        make(chan ADSStream, 1),
-		reqCh:           make(chan *discoveryv3.DiscoveryRequest, 1024),
+		streamCh:        make(chan *adsStreamWrapper, 1),
 	}
 	cli.run()
 	return cli, nil
@@ -207,10 +226,10 @@ func (c *xdsClient) updateAndACK(rType xdsresource.ResourceType, nonce, version 
 	c.sendRequest(req)
 }
 
-func (c *xdsClient) sender(as ADSStream) {
+func (c *xdsClient) sender(sw *adsStreamWrapper) {
 	// 1. make sure no concurrent send
 	// 2. construct a new stream when getting errors (EOF?)
-	currStream := as
+	currStream := sw
 	for {
 		select {
 		case <-c.closeCh:
@@ -219,20 +238,14 @@ func (c *xdsClient) sender(as ADSStream) {
 		case s := <-c.streamCh:
 			// new stream, send request with non version and nonce
 			currStream = s
-			if err := c.reqWhenReconnect(currStream); err != nil {
+			if err := c.reqWhenReconnect(currStream.stream); err != nil {
 				currStream = nil
 			}
 		default:
 		}
 		if currStream != nil {
-			select {
-			case req := <-c.reqCh:
-				if err := currStream.Send(req); err != nil {
-					klog.Errorf("KITEX: [XDS] client, send failed, error=%s", err)
-					currStream = nil
-					continue
-				}
-			default:
+			if err := currStream.send(); err != nil {
+				currStream = nil
 			}
 		}
 	}
@@ -240,7 +253,7 @@ func (c *xdsClient) sender(as ADSStream) {
 
 // receiver receives and handle response from the xds server.
 // xds server may proactively push the update.
-func (c *xdsClient) receiver(as ADSStream) {
+func (c *xdsClient) receiver(sw *adsStreamWrapper) {
 	// receiver
 	defer func() {
 		if err := recover(); err != nil {
@@ -248,7 +261,7 @@ func (c *xdsClient) receiver(as ADSStream) {
 		}
 	}()
 
-	currStream := as
+	currStream := sw
 	for {
 		select {
 		case <-c.closeCh:
@@ -257,10 +270,10 @@ func (c *xdsClient) receiver(as ADSStream) {
 		default:
 		}
 		if currStream != nil {
-			resp, err := currStream.Recv()
+			resp, err := currStream.stream.Recv()
 			if err != nil {
 				klog.Errorf("KITEX: [XDS] client, receive failed, error=%s", err)
-				currStream.Close()
+				currStream.stream.Close()
 				if s, e := c.reconnect(); e == nil {
 					currStream = s
 				}
@@ -290,8 +303,13 @@ func (c *xdsClient) run() {
 		klog.Errorf("[XDS] client, failed to connect the xDS Server, error=%s", err.Error())
 		return
 	}
-	go c.sender(as)
-	go c.receiver(as)
+	// wrap the stream
+	sw := newAdsStreamWrapper(as)
+	c.streamWrapper.Store(sw)
+
+	// start sender and receiver
+	go c.sender(sw)
+	go c.receiver(sw)
 	c.warmup()
 }
 
@@ -324,7 +342,7 @@ func (c *xdsClient) connect() (as ADSStream, err error) {
 }
 
 // reconnect
-func (c *xdsClient) reconnect() (ADSStream, error) {
+func (c *xdsClient) reconnect() (*adsStreamWrapper, error) {
 	// create new stream
 	as, err := c.connect()
 	if err != nil {
@@ -337,8 +355,10 @@ func (c *xdsClient) reconnect() (ADSStream, error) {
 	c.mu.Unlock()
 
 	// notify others to use the new stream
-	c.streamCh <- as
-	return as, nil
+	sw := newAdsStreamWrapper(as)
+	c.streamWrapper.Store(sw)
+	c.streamCh <- sw
+	return sw, nil
 }
 
 // reqWhenReconnect construct a new stream and send all the watched resources
@@ -359,7 +379,10 @@ func (c *xdsClient) reqWhenReconnect(as ADSStream) error {
 func (c *xdsClient) sendRequest(req *discoveryv3.DiscoveryRequest) {
 	// put the req to the channel
 	// TODO: the request maybe outdated if the stream reconnect.
-	c.reqCh <- req
+	sw := c.streamWrapper.Load()
+	if sw != nil {
+		sw.(*adsStreamWrapper).pushReq(req)
+	}
 }
 
 // getListenerName returns the listener name in this format: ${clusterIP}_${port}

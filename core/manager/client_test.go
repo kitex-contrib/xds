@@ -18,6 +18,7 @@ package manager
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"testing"
 
@@ -36,27 +37,70 @@ import (
 
 type mockADSClient struct {
 	ADSClient
+	opt *streamOpt
 }
 
 func (sc *mockADSClient) StreamAggregatedResources(ctx context.Context, callOptions ...callopt.Option) (stream ADSStream, err error) {
-	return &mockADSStream{}, nil
+	return &mockADSStream{opt: sc.opt}, nil
 }
 
 type mockADSStream struct {
 	ADSStream
+	opt *streamOpt
 }
 
-func (sc *mockADSStream) Send(*discoveryv3.DiscoveryRequest) error {
+type streamOpt struct {
+	sendFunc  func(*discoveryv3.DiscoveryRequest) error
+	recvFunc  func() (*discoveryv3.DiscoveryResponse, error)
+	closeFunc func() error
+}
+
+var (
+	sendFailedFunc = func(*discoveryv3.DiscoveryRequest) error {
+		return fmt.Errorf("mock send failed")
+	}
+	recvFailedFunc = func() (*discoveryv3.DiscoveryResponse, error) {
+		return nil, fmt.Errorf("mock recv failed")
+	}
+	mockCloseFunc = func() error {
+		return nil
+	}
+)
+
+func (sc *mockADSStream) Send(req *discoveryv3.DiscoveryRequest) error {
+	if sc.opt != nil && sc.opt.sendFunc != nil {
+		return sc.opt.sendFunc(req)
+	}
 	return nil
 }
 
 func (sc *mockADSStream) Recv() (*discoveryv3.DiscoveryResponse, error) {
+	if sc.opt != nil && sc.opt.recvFunc != nil {
+		return sc.opt.recvFunc()
+	}
 	return nil, nil
 }
 
 func (sc *mockADSStream) Close() error {
+	if sc.opt != nil && sc.opt.closeFunc != nil {
+		return sc.opt.closeFunc()
+	}
 	return nil
 }
+
+var (
+	mockUpdater = &xdsResourceManager{
+		cache:       map[xdsresource.ResourceType]map[string]xdsresource.Resource{},
+		meta:        make(map[xdsresource.ResourceType]map[string]*xdsresource.ResourceMeta),
+		notifierMap: make(map[xdsresource.ResourceType]map[string]*notifier),
+		mu:          sync.RWMutex{},
+		opts:        NewOptions(nil),
+	}
+	mockBootstrapConfig = &BootstrapConfig{
+		node:      NodeProto,
+		xdsSvrCfg: XdsServerConfig,
+	}
+)
 
 func Test_newXdsClient(t *testing.T) {
 	address := ":8889"
@@ -66,13 +110,11 @@ func Test_newXdsClient(t *testing.T) {
 			_ = svr.Stop()
 		}
 	}()
-	c, err := newXdsClient(
-		&BootstrapConfig{
-			node:      &v3core.Node{},
-			xdsSvrCfg: &XDSServerConfig{SvrAddr: address},
-		},
-		nil,
-	)
+
+	c, err := initXDSClient(&BootstrapConfig{
+		node:      &v3core.Node{},
+		xdsSvrCfg: &XDSServerConfig{SvrAddr: address},
+	}, nil)
 	defer c.close()
 	assert.Nil(t, err)
 }
@@ -80,26 +122,16 @@ func Test_newXdsClient(t *testing.T) {
 func Test_xdsClient_handleResponse(t *testing.T) {
 	// inject mock
 	c := &xdsClient{
-		config: &BootstrapConfig{
-			node:      NodeProto,
-			xdsSvrCfg: XdsServerConfig,
-		},
+		config:          mockBootstrapConfig,
 		adsClient:       &mockADSClient{},
+		connectBackoff:  backoff.NewExponentialBackOff(),
 		watchedResource: make(map[xdsresource.ResourceType]map[string]bool),
 		cipResolver:     newNdsResolver(),
 		versionMap:      make(map[xdsresource.ResourceType]string),
 		nonceMap:        make(map[xdsresource.ResourceType]string),
-		resourceUpdater: &xdsResourceManager{
-			cache:       map[xdsresource.ResourceType]map[string]xdsresource.Resource{},
-			meta:        make(map[xdsresource.ResourceType]map[string]*xdsresource.ResourceMeta),
-			notifierMap: make(map[xdsresource.ResourceType]map[string]*notifier),
-			mu:          sync.RWMutex{},
-			opts:        NewOptions(nil),
-		},
-		closeCh:        make(chan struct{}),
-		connectBackoff: backoff.NewExponentialBackOff(),
-		streamCh:       make(chan ADSStream),
-		reqCh:          make(chan *discoveryv3.DiscoveryRequest, 1024),
+		resourceUpdater: mockUpdater,
+		closeCh:         make(chan struct{}),
+		streamCh:        make(chan *adsStreamWrapper, 1),
 	}
 	defer c.close()
 
@@ -121,4 +153,21 @@ func Test_xdsClient_handleResponse(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, c.versionMap[xdsresource.RouteConfigType], mock.RDSVersion1)
 	assert.Equal(t, c.nonceMap[xdsresource.RouteConfigType], mock.RDSNonce1)
+}
+
+func TestReconnect(t *testing.T) {
+	ac := &mockADSClient{
+		opt: &streamOpt{
+			sendFunc: func(*discoveryv3.DiscoveryRequest) error {
+				return fmt.Errorf("mock send failed")
+			},
+			recvFunc: func() (response *discoveryv3.DiscoveryResponse, err error) {
+				ch := make(chan struct{})
+				defer close(ch)
+				<-ch
+				return nil, nil
+			},
+		},
+	}
+	_ = ac
 }
