@@ -189,17 +189,21 @@ func TestReconnect(t *testing.T) {
 		},
 	}, ac, mockUpdater)
 	assert.Nil(t, err)
+	assert.Equal(t, cli.versionMap[xdsresource.EndpointsType], "")
 	cli.Watch(xdsresource.EndpointsType, xdsresource.EndpointName1, false)
 	// mock recv succeed
 	recvCh <- &mockStatus{err: nil}
 	time.Sleep(10 * time.Millisecond)
 	assert.Equal(t, cli.nonceMap[xdsresource.EndpointsType], mock.EdsResp1.Nonce)
-	// mock recv failed
+	// mock recv failed, reconnect
 	recvCh <- &mockStatus{err: fmt.Errorf("recv failed")}
 	time.Sleep(10 * time.Millisecond)
 	assert.Equal(t, 2, recvCnt)
 	assert.Equal(t, true, closed)
-	assert.Equal(t, 3, sendCnt) // watch/ack and reconnect
+	assert.Equal(t, 3, sendCnt) // watch&ack and reconnect
+	// without resp, the nonce should be reset to empty. the version should not be reset.
+	assert.Equal(t, cli.nonceMap[xdsresource.EndpointsType], "")
+	assert.Equal(t, cli.versionMap[xdsresource.EndpointsType], mock.EdsResp1.VersionInfo)
 	_ = cli
 }
 

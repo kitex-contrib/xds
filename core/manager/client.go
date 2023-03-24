@@ -328,7 +328,8 @@ func (c *xdsClient) connect() (as ADSStream, err error) {
 	return as, nil
 }
 
-// reconnect
+// reconnect constructs a new stream to the server and reset the nonce map and request channel.
+// It will only be called in receiver and use the streamCh to notify the sender.
 func (c *xdsClient) reconnect() (ADSStream, error) {
 	// create new stream
 	as, err := c.connect()
