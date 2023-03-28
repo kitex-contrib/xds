@@ -38,6 +38,7 @@ var (
 	}
 	XdsServerConfig = &XDSServerConfig{
 		SvrAddr: XdsServerAddress,
+		SvrName: IstiodSvrName,
 	}
 	XdsBootstrapConfig = &BootstrapConfig{
 		node:      NodeProto,

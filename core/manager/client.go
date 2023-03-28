@@ -26,6 +26,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 
 	"github.com/kitex-contrib/xds/core/api/kitex_gen/envoy/service/discovery/v3/aggregateddiscoveryservice"
+	"github.com/kitex-contrib/xds/core/manager/auth"
 	"github.com/kitex-contrib/xds/core/xdsresource"
 
 	"github.com/cloudwego/kitex/client"
@@ -41,10 +42,20 @@ type (
 )
 
 // newADSClient constructs a new stream client that communicates with the xds server
-func newADSClient(addr string) (ADSClient, error) {
-	cli, err := aggregateddiscoveryservice.NewClient("xds_servers",
-		client.WithHostPorts(addr),
-	)
+func newADSClient(xdsSvrCfg *XDSServerConfig) (ADSClient, error) {
+	var opts []client.Option
+	opts = append(opts, client.WithHostPorts(xdsSvrCfg.SvrAddr))
+
+	if xdsSvrCfg.XDSAuth {
+		if tlsConfig, err := auth.GetTLSConfig(xdsSvrCfg.SvrAddr); err != nil {
+			return nil, err
+		} else {
+			opts = append(opts, client.WithGRPCTLSConfig(tlsConfig))
+		}
+		opts = append(opts, client.WithMetaHandler(auth.ClientHTTP2JwtHandler))
+	}
+
+	cli, err := aggregateddiscoveryservice.NewClient(xdsSvrCfg.SvrName, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -252,6 +263,12 @@ func (c *xdsClient) receiver(as ADSStream) {
 			if err != nil {
 				klog.Errorf("KITEX: [XDS] client, receive failed, error=%s", err)
 				currStream.Close()
+				if auth.IsAuthError(err) {
+					// if it is auth error, return directly.
+					klog.Errorf("KITEX: [XDS] client, authentication of the control plane failed, close the xDS client. Please check the error log in control plane for more details.")
+					c.close()
+					return
+				}
 				if s, e := c.reconnect(); e == nil {
 					currStream = s
 				}

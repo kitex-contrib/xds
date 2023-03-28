@@ -25,12 +25,13 @@ import (
 )
 
 const (
-	PodNamespace = "POD_NAMESPACE"
-	PodName      = "POD_NAME"
-	InstanceIP   = "INSTANCE_IP"
-	IstiodAddr   = "istiod.istio-system.svc:15010"
-	IstioVersion = "ISTIO_VERSION"
-	nodeIDSuffix = "svc.cluster.local"
+	PodNamespace  = "POD_NAMESPACE"
+	PodName       = "POD_NAME"
+	InstanceIP    = "INSTANCE_IP"
+	IstiodAddr    = "istiod.istio-system.svc:15010"
+	IstiodSvrName = "istiod.istio-system.svc"
+	IstioVersion  = "ISTIO_VERSION"
+	nodeIDSuffix  = "svc.cluster.local"
 )
 
 type BootstrapConfig struct {
@@ -39,12 +40,14 @@ type BootstrapConfig struct {
 }
 
 type XDSServerConfig struct {
-	SvrAddr        string
-	NDSNotRequired bool // required by default for Istio
+	SvrName        string // The name of the xDS server
+	SvrAddr        string // The address of the xDS server
+	XDSAuth        bool   // If this xDS enable the authentication of xDS stream
+	NDSNotRequired bool   // required by default for Istio
 }
 
 // newBootstrapConfig constructs the bootstrapConfig
-func newBootstrapConfig(xdsSvrAddress string) (*BootstrapConfig, error) {
+func newBootstrapConfig(config *XDSServerConfig) (*BootstrapConfig, error) {
 	// Get info from env
 	// Info needed for construct the nodeID
 	namespace := os.Getenv(PodNamespace)
@@ -62,11 +65,6 @@ func newBootstrapConfig(xdsSvrAddress string) (*BootstrapConfig, error) {
 	// specify the version of istio in case of the canary deployment of istiod
 	istioVersion := os.Getenv(IstioVersion)
 
-	// use default istiod address if not specified
-	if xdsSvrAddress == "" {
-		xdsSvrAddress = IstiodAddr
-	}
-
 	return &BootstrapConfig{
 		node: &v3core.Node{
 			//"sidecar~" + podIP + "~" + podName + "." + namespace + "~" + namespace + ".svc.cluster.local",
@@ -79,8 +77,6 @@ func newBootstrapConfig(xdsSvrAddress string) (*BootstrapConfig, error) {
 				},
 			},
 		},
-		xdsSvrCfg: &XDSServerConfig{
-			SvrAddr: xdsSvrAddress,
-		},
+		xdsSvrCfg: config,
 	}, nil
 }

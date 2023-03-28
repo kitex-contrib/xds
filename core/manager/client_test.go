@@ -102,7 +102,7 @@ func Test_newXdsClient(t *testing.T) {
 
 	c, err := initXDSClient(&BootstrapConfig{
 		node:      &v3core.Node{},
-		xdsSvrCfg: &XDSServerConfig{SvrAddr: address},
+		xdsSvrCfg: &XDSServerConfig{SvrAddr: address, SvrName: IstiodSvrName},
 	}, nil)
 	defer c.close()
 	assert.Nil(t, err)
