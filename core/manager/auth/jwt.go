@@ -29,11 +29,15 @@ import (
 )
 
 const (
-	jwtTokenPath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
-	jwtTokenKey  = "Authorization"
+	jwtTokenPath = "/var/run/secrets/kubernetes.io/serviceaccount/token" // token path in the pod.
 
-	clusterIDMetadataKey = "clusterid"
-	clusterIDEnvKey      = "ISTIO_META_CLUSTER_ID"
+	jwtTokenKey = "Authorization" // Istiod gets the jwt from meta using this key.
+
+	// If Istio is deployed in a different cluster, set this env as the cluster id of this service.
+	// Usually, we can get the value using "kubectl config get-clusters".
+	clusterIDEnvKey = "ISTIO_META_CLUSTER_ID"
+
+	clusterIDMetadataKey = "clusterid" // Istiod retrieves clusterid and use it for auth of JWT.
 )
 
 var (
