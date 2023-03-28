@@ -18,8 +18,12 @@ package manager
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"testing"
+	"time"
+
+	"github.com/cenkalti/backoff/v4"
 
 	"github.com/kitex-contrib/xds/core/manager/mock"
 	"github.com/kitex-contrib/xds/core/xdsresource"
@@ -32,27 +36,58 @@ import (
 	"github.com/cloudwego/kitex/client/callopt"
 )
 
+var (
+	mockUpdater = &xdsResourceManager{
+		cache:       map[xdsresource.ResourceType]map[string]xdsresource.Resource{},
+		meta:        make(map[xdsresource.ResourceType]map[string]*xdsresource.ResourceMeta),
+		notifierMap: make(map[xdsresource.ResourceType]map[string]*notifier),
+		mu:          sync.RWMutex{},
+		opts:        NewOptions(nil),
+	}
+	mockBootstrapConfig = &BootstrapConfig{
+		node:      NodeProto,
+		xdsSvrCfg: XdsServerConfig,
+	}
+)
+
 type mockADSClient struct {
 	ADSClient
+	opt *streamOpt
 }
 
 func (sc *mockADSClient) StreamAggregatedResources(ctx context.Context, callOptions ...callopt.Option) (stream ADSStream, err error) {
-	return &mockADSStream{}, nil
+	return &mockADSStream{opt: sc.opt}, nil
 }
 
 type mockADSStream struct {
 	ADSStream
+	opt *streamOpt
 }
 
-func (sc *mockADSStream) Send(*discoveryv3.DiscoveryRequest) error {
+type streamOpt struct {
+	sendFunc  func(*discoveryv3.DiscoveryRequest) error
+	recvFunc  func() (*discoveryv3.DiscoveryResponse, error)
+	closeFunc func() error
+}
+
+func (sc *mockADSStream) Send(req *discoveryv3.DiscoveryRequest) error {
+	if sc.opt != nil && sc.opt.sendFunc != nil {
+		return sc.opt.sendFunc(req)
+	}
 	return nil
 }
 
 func (sc *mockADSStream) Recv() (*discoveryv3.DiscoveryResponse, error) {
+	if sc.opt != nil && sc.opt.recvFunc != nil {
+		return sc.opt.recvFunc()
+	}
 	return nil, nil
 }
 
 func (sc *mockADSStream) Close() error {
+	if sc.opt != nil && sc.opt.closeFunc != nil {
+		return sc.opt.closeFunc()
+	}
 	return nil
 }
 
@@ -64,13 +99,11 @@ func Test_newXdsClient(t *testing.T) {
 			_ = svr.Stop()
 		}
 	}()
-	c, err := newXdsClient(
-		&BootstrapConfig{
-			node:      &v3core.Node{},
-			xdsSvrCfg: &XDSServerConfig{SvrAddr: address},
-		},
-		nil,
-	)
+
+	c, err := initXDSClient(&BootstrapConfig{
+		node:      &v3core.Node{},
+		xdsSvrCfg: &XDSServerConfig{SvrAddr: address},
+	}, nil)
 	defer c.close()
 	assert.Nil(t, err)
 }
@@ -78,23 +111,17 @@ func Test_newXdsClient(t *testing.T) {
 func Test_xdsClient_handleResponse(t *testing.T) {
 	// inject mock
 	c := &xdsClient{
-		config: &BootstrapConfig{
-			node:      NodeProto,
-			xdsSvrCfg: XdsServerConfig,
-		},
+		config:          mockBootstrapConfig,
 		adsClient:       &mockADSClient{},
+		connectBackoff:  backoff.NewExponentialBackOff(),
 		watchedResource: make(map[xdsresource.ResourceType]map[string]bool),
 		cipResolver:     newNdsResolver(),
 		versionMap:      make(map[xdsresource.ResourceType]string),
 		nonceMap:        make(map[xdsresource.ResourceType]string),
-		resourceUpdater: &xdsResourceManager{
-			cache:       map[xdsresource.ResourceType]map[string]xdsresource.Resource{},
-			meta:        make(map[xdsresource.ResourceType]map[string]*xdsresource.ResourceMeta),
-			notifierMap: make(map[xdsresource.ResourceType]map[string]*notifier),
-			mu:          sync.RWMutex{},
-			opts:        NewOptions(nil),
-		},
-		closeCh: make(chan struct{}),
+		resourceUpdater: mockUpdater,
+		closeCh:         make(chan struct{}),
+		streamCh:        make(chan ADSStream, 1),
+		reqCh:           make(chan *discoveryv3.DiscoveryRequest, 1024),
 	}
 	defer c.close()
 
@@ -116,4 +143,76 @@ func Test_xdsClient_handleResponse(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, c.versionMap[xdsresource.RouteConfigType], mock.RDSVersion1)
 	assert.Equal(t, c.nonceMap[xdsresource.RouteConfigType], mock.RDSNonce1)
+}
+
+func TestReconnect(t *testing.T) {
+	// used to control the func
+	type mockStatus struct {
+		err error
+	}
+	sendCh := make(chan *mockStatus)
+	recvCh := make(chan *mockStatus)
+	sendCnt, recvCnt := 0, 0
+	closed := false
+	defer func() {
+		close(sendCh)
+		close(recvCh)
+	}()
+
+	ac := &mockADSClient{
+		opt: &streamOpt{
+			sendFunc: func(req *discoveryv3.DiscoveryRequest) error {
+				sendCnt++
+				return nil
+			},
+			recvFunc: func() (response *discoveryv3.DiscoveryResponse, err error) {
+				s := <-recvCh
+				recvCnt++
+				if s.err != nil {
+					return nil, s.err
+				}
+				// handle eds will not trigger new send
+				return mock.EdsResp1, nil
+			},
+			closeFunc: func() error {
+				closed = true
+				return nil
+			},
+		},
+	}
+
+	cli, err := newXdsClient(&BootstrapConfig{
+		node: NodeProto,
+		xdsSvrCfg: &XDSServerConfig{
+			SvrAddr:        XdsServerAddress,
+			NDSNotRequired: true,
+		},
+	}, ac, mockUpdater)
+	assert.Nil(t, err)
+	assert.Equal(t, cli.versionMap[xdsresource.EndpointsType], "")
+	cli.Watch(xdsresource.EndpointsType, xdsresource.EndpointName1, false)
+	// mock recv succeed
+	recvCh <- &mockStatus{err: nil}
+	time.Sleep(10 * time.Millisecond)
+	assert.Equal(t, cli.nonceMap[xdsresource.EndpointsType], mock.EdsResp1.Nonce)
+	// mock recv failed, reconnect
+	recvCh <- &mockStatus{err: fmt.Errorf("recv failed")}
+	time.Sleep(10 * time.Millisecond)
+	assert.Equal(t, 2, recvCnt)
+	assert.Equal(t, true, closed)
+	assert.Equal(t, 3, sendCnt) // watch&ack and reconnect
+	// without resp, the nonce should be reset to empty. the version should not be reset.
+	assert.Equal(t, cli.nonceMap[xdsresource.EndpointsType], "")
+	assert.Equal(t, cli.versionMap[xdsresource.EndpointsType], mock.EdsResp1.VersionInfo)
+	_ = cli
+}
+
+func TestClearCh(t *testing.T) {
+	ch := make(chan *discoveryv3.DiscoveryRequest, 1024)
+	for i := 0; i < 10; i++ {
+		ch <- &discoveryv3.DiscoveryRequest{}
+	}
+	assert.Equal(t, 10, len(ch))
+	clearRequestCh(ch, 10)
+	assert.Equal(t, 0, len(ch))
 }

@@ -79,16 +79,25 @@ func NewXDSResourceManager(bootstrapConfig *BootstrapConfig, opts ...Option) (*x
 			return nil, err
 		}
 	}
-	cli, err := newXdsClient(bootstrapConfig, m)
+	cli, err := initXDSClient(bootstrapConfig, m)
 	if err != nil {
 		return nil, err
 	}
-
 	m.client = cli
 
 	// start the cache cleaner
 	go m.cleaner()
 	return m, nil
+}
+
+func initXDSClient(bootstrapConfig *BootstrapConfig, m *xdsResourceManager) (*xdsClient, error) {
+	// build ads client that communicates with the xds server
+	ac, err := newADSClient(bootstrapConfig.xdsSvrCfg.SvrAddr)
+	if err != nil {
+		return nil, fmt.Errorf("[XDS] client: construct ads client failed, %s", err.Error())
+	}
+	cli, err := newXdsClient(bootstrapConfig, ac, m)
+	return cli, err
 }
 
 // getFromCache returns the resource from cache and update the access time in the meta

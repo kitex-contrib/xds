@@ -32,12 +32,12 @@ import (
 
 // for test use
 var (
-	XdsSercerAddress = ":8889"
+	XdsServerAddress = ":8889"
 	NodeProto        = &v3core.Node{
 		Id: "sidecar~kitex-test-node",
 	}
 	XdsServerConfig = &XDSServerConfig{
-		SvrAddr: XdsSercerAddress,
+		SvrAddr: XdsServerAddress,
 	}
 	XdsBootstrapConfig = &BootstrapConfig{
 		node:      NodeProto,
@@ -47,7 +47,7 @@ var (
 
 func Test_xdsResourceManager_Get(t *testing.T) {
 	// Init
-	svr := mock.StartXDSServer(XdsSercerAddress)
+	svr := mock.StartXDSServer(XdsServerAddress)
 	defer func() {
 		if svr != nil {
 			_ = svr.Stop()
@@ -171,7 +171,7 @@ func Test_xdsResourceManager_Get(t *testing.T) {
 
 func Test_xdsResourceManager_Get_Resource_Update(t *testing.T) {
 	// Init
-	svr := mock.StartXDSServer(XdsSercerAddress)
+	svr := mock.StartXDSServer(XdsServerAddress)
 	defer func() {
 		if svr != nil {
 			_ = svr.Stop()
@@ -265,7 +265,7 @@ func Test_xdsResourceManager_getFromCache(t *testing.T) {
 }
 
 func Test_xdsResourceManager_ConcurrentGet(t *testing.T) {
-	svr := mock.StartXDSServer(XdsSercerAddress)
+	svr := mock.StartXDSServer(XdsServerAddress)
 	defer func() {
 		if svr != nil {
 			_ = svr.Stop()
