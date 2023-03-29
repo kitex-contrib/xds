@@ -74,7 +74,7 @@ func NewXDSResourceManager(bootstrapConfig *BootstrapConfig, opts ...Option) (*x
 	}
 	// Initial xds client
 	if bootstrapConfig == nil {
-		bootstrapConfig, err = newBootstrapConfig(m.opts.XDSSvrConfig.SvrAddr)
+		bootstrapConfig, err = newBootstrapConfig(m.opts.XDSSvrConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -92,7 +92,7 @@ func NewXDSResourceManager(bootstrapConfig *BootstrapConfig, opts ...Option) (*x
 
 func initXDSClient(bootstrapConfig *BootstrapConfig, m *xdsResourceManager) (*xdsClient, error) {
 	// build ads client that communicates with the xds server
-	ac, err := newADSClient(bootstrapConfig.xdsSvrCfg.SvrAddr)
+	ac, err := newADSClient(bootstrapConfig.xdsSvrCfg)
 	if err != nil {
 		return nil, fmt.Errorf("[XDS] client: construct ads client failed, %s", err.Error())
 	}
