@@ -145,16 +145,19 @@ func TestPickCluster(t *testing.T) {
 		cntMap := make(map[string]int)
 		num := 100
 		for i := 0; i < num; i++ {
-			c := pickCluster(route)
+			c, err := pickCluster(route)
+			if !valid {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+			}
 			cntMap[c]++
 		}
 		var total int
 		for _, c := range route.WeightedClusters {
 			total += cntMap[c.Name]
 		}
-		if !valid {
-			assert.Equal(t, cntMap[""], num)
-		} else {
+		if valid {
 			assert.Equal(t, cntMap[""], 0)
 			assert.Equal(t, num, total)
 		}
