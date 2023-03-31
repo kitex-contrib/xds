@@ -139,3 +139,78 @@ func Test_matchHTTPRoute(t *testing.T) {
 	assert.NotNil(t, r)
 	assert.Equal(t, clusterName1, r.WeightedClusters[0].Name)
 }
+
+func TestPickCluster(t *testing.T) {
+	testFunc := func(route *xdsresource.Route, valid bool) {
+		cntMap := make(map[string]int)
+		num := 100
+		for i := 0; i < num; i++ {
+			c, err := pickCluster(route)
+			if !valid {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+			}
+			cntMap[c]++
+		}
+		var total int
+		for _, c := range route.WeightedClusters {
+			total += cntMap[c.Name]
+		}
+		if valid {
+			assert.Equal(t, cntMap[""], 0)
+			assert.Equal(t, num, total)
+		}
+	}
+
+	// total weight more than 100
+	routeWithWeight200 := &xdsresource.Route{
+		WeightedClusters: []*xdsresource.WeightedCluster{
+			{
+				Name:   clusterName2,
+				Weight: 100,
+			},
+			{
+				Name:   clusterName1,
+				Weight: 100,
+			},
+		},
+		Timeout: 0,
+	}
+	assert.Equal(t, uint32(200), calTotalWeight(routeWithWeight200.WeightedClusters))
+	testFunc(routeWithWeight200, true)
+
+	// weight less than 100
+	routeWithWeight50 := &xdsresource.Route{
+		WeightedClusters: []*xdsresource.WeightedCluster{
+			{
+				Name:   clusterName2,
+				Weight: 25,
+			},
+			{
+				Name:   clusterName1,
+				Weight: 25,
+			},
+		},
+		Timeout: 0,
+	}
+	assert.Equal(t, uint32(50), calTotalWeight(routeWithWeight50.WeightedClusters))
+	testFunc(routeWithWeight50, true)
+
+	// total weight
+	routeWithWeight0 := &xdsresource.Route{
+		WeightedClusters: []*xdsresource.WeightedCluster{
+			{
+				Name:   clusterName2,
+				Weight: 0,
+			},
+			{
+				Name:   clusterName1,
+				Weight: 0,
+			},
+		},
+		Timeout: 0,
+	}
+	assert.Equal(t, uint32(0), calTotalWeight(routeWithWeight0.WeightedClusters))
+	testFunc(routeWithWeight0, false)
+}

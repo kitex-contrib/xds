@@ -51,7 +51,7 @@ func NewXDSRouterMiddleware(opts ...Option) endpoint.Middleware {
 			}
 			res, err := router.Route(ctx, ri)
 			if err != nil {
-				return err
+				return kerrors.ErrRoute.WithCause(err)
 			}
 			// set destination
 			_ = remoteinfo.AsRemoteInfo(dest).SetTag(RouterClusterKey, res.ClusterPicked)
@@ -62,8 +62,6 @@ func NewXDSRouterMiddleware(opts ...Option) endpoint.Middleware {
 		}
 	}
 }
-
-var defaultTotalWeight int32 = 100
 
 // RouteResult stores the result of route
 type RouteResult struct {
@@ -94,12 +92,12 @@ func (r *XDSRouter) Route(ctx context.Context, ri rpcinfo.RPCInfo) (*RouteResult
 	route, err := r.matchRoute(ctx, ri)
 	// no matched route
 	if err != nil {
-		return nil, fmt.Errorf("no matched route for service %s, err=%s", ri.To().ServiceName(), err)
+		return nil, fmt.Errorf("[XDS] Router, no matched route for service %s, err=%s", ri.To().ServiceName(), err)
 	}
 	// pick cluster from the matched route
-	cluster := pickCluster(route)
-	if cluster == "" {
-		return nil, fmt.Errorf("no cluster selected")
+	cluster, err := pickCluster(route)
+	if err != nil {
+		return nil, fmt.Errorf("[XDS] Router, no cluster selected, err=%s", err)
 	}
 	return &RouteResult{
 		RPCTimeout:    route.Timeout,
@@ -219,23 +217,36 @@ func routeMatched(path string, md map[string]string, r *xdsresource.Route) bool 
 }
 
 // pickCluster selects cluster based on the weight
-func pickCluster(route *xdsresource.Route) string {
+func pickCluster(route *xdsresource.Route) (string, error) {
 	// handle weighted cluster
 	wcs := route.WeightedClusters
 	if len(wcs) == 0 {
-		return ""
+		return "", fmt.Errorf("no weighted clusters in route")
 	}
 	if len(wcs) == 1 {
-		return wcs[0].Name
+		return wcs[0].Name, nil
 	}
 	currWeight := uint32(0)
-	targetWeight := uint32(fastrand.Int31n(defaultTotalWeight))
+	totalWeight := calTotalWeight(wcs)
+	if totalWeight <= 0 {
+		js, _ := route.MarshalJSON()
+		return "", fmt.Errorf("total weight of route is invalid (<= 0), route: %s", js)
+	}
+	targetWeight := uint32(fastrand.Int31n(int32(totalWeight)))
 	for _, wc := range wcs {
 		currWeight += wc.Weight
 		if currWeight >= targetWeight {
-			return wc.Name
+			return wc.Name, nil
 		}
 	}
-	// total weight is less than target weight
-	return ""
+	// should not reach here
+	return "", fmt.Errorf("random pick failed")
+}
+
+func calTotalWeight(wcs []*xdsresource.WeightedCluster) uint32 {
+	var total uint32
+	for i := range wcs {
+		total += wcs[i].Weight
+	}
+	return total
 }
