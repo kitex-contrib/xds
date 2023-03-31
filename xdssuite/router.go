@@ -23,6 +23,7 @@ import (
 
 	"github.com/cloudwego/kitex/pkg/endpoint"
 	"github.com/cloudwego/kitex/pkg/kerrors"
+	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/cloudwego/kitex/pkg/rpcinfo/remoteinfo"
 
 	"github.com/bytedance/gopkg/lang/fastrand"
@@ -229,7 +230,13 @@ func pickCluster(route *xdsresource.Route) string {
 		return wcs[0].Name
 	}
 	currWeight := uint32(0)
-	targetWeight := uint32(fastrand.Int31n(defaultTotalWeight))
+	totalWeight := calTotalWeight(wcs)
+	if totalWeight <= 0 {
+		js, _ := route.MarshalJSON()
+		klog.Warnf("[XDS] router, total weight of route is invalid (<= 0), route: %s", js)
+		return ""
+	}
+	targetWeight := uint32(fastrand.Int31n(int32(totalWeight)))
 	for _, wc := range wcs {
 		currWeight += wc.Weight
 		if currWeight >= targetWeight {
@@ -238,4 +245,12 @@ func pickCluster(route *xdsresource.Route) string {
 	}
 	// total weight is less than target weight
 	return ""
+}
+
+func calTotalWeight(wcs []*xdsresource.WeightedCluster) uint32 {
+	var total uint32
+	for i := range wcs {
+		total += wcs[i].Weight
+	}
+	return total
 }
