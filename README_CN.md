@@ -101,6 +101,7 @@ spec:
 比如：将 key 和 value 设置为“stage”和“canary”，以匹配 VirtualService 中定义的上述规则。
 
 * 我们可以先定义一个元信息提取方法，并通过 `xdssuite.WithRouterMetaExtractor` 传入到 `RouterMiddleware` 中。
+  * 注意：若未配置 RouteMetaExtractor，默认会使用 metainfo.GetAllValues 来获取。
 ```
 var (
 	routeKey   = "stage"

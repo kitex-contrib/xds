@@ -101,6 +101,7 @@ In order to match the rules defined in the VirtualService we need to specify the
 For example: set the key and value to "stage" and "canary" to match the above rules defined in VirtualService.
 
 * We can first define a MetaExtractor and pass it to `RouterMiddleware` through `xdssuite.WithRouterMetaExtractor`.
+  * Notice: If RouterMetaExtractor is not configured, metainfo.GetAllValues will be used by default.
 ```
 var (
 	routeKey   = "stage"
