@@ -203,8 +203,8 @@ func unmarshalRouteConfig(routeConfig *v3routepb.RouteConfiguration) (*RouteConf
 	}, nil
 }
 
-func UnmarshalRDS(rawResources []*any.Any) (map[string]*RouteConfigResource, error) {
-	ret := make(map[string]*RouteConfigResource, len(rawResources))
+func UnmarshalRDS(rawResources []*any.Any) (map[string]Resource, error) {
+	ret := make(map[string]Resource, len(rawResources))
 	errMap := make(map[string]error)
 	var errSlice []error
 	for _, r := range rawResources {

@@ -208,8 +208,8 @@ func Test_xdsResourceManager_Get_Resource_Update(t *testing.T) {
 	svr.PushResourceUpdate(mock.RdsResp2)
 	time.Sleep(time.Millisecond * 100)
 	res, err = m.Get(context.Background(), xdsresource.RouteConfigType, xdsresource.RouteConfigName1)
-	assert.NotNil(t, err)
-	assert.Nil(t, res)
+	assert.Nil(t, err)
+	assert.NotNil(t, res)
 
 	// Cluster
 	res, err = m.Get(context.Background(), xdsresource.ClusterType, xdsresource.ClusterName1)

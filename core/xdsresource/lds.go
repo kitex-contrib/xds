@@ -34,6 +34,10 @@ type ListenerResource struct {
 	NetworkFilters []*NetworkFilter
 }
 
+func (r *ListenerResource) ResourceType() ResourceType {
+	return ListenerType
+}
+
 type NetworkFilterType int
 
 const (

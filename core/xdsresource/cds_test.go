@@ -28,13 +28,13 @@ func TestUnmarshalCDSError(t *testing.T) {
 	tests := []struct {
 		name         string
 		rawResources []*any.Any
-		want         map[string]*ClusterResource
+		want         map[string]Resource
 		wantErr      bool
 	}{
 		{
 			name:         "resource is nil",
 			rawResources: nil,
-			want:         map[string]*ClusterResource{},
+			want:         map[string]Resource{},
 			wantErr:      false,
 		},
 		{
@@ -42,7 +42,7 @@ func TestUnmarshalCDSError(t *testing.T) {
 			rawResources: []*any.Any{
 				{TypeUrl: ListenerTypeURL, Value: []byte{}},
 			},
-			want:    map[string]*ClusterResource{},
+			want:    map[string]Resource{},
 			wantErr: true,
 		},
 	}
@@ -67,7 +67,7 @@ func TestUnmarshalCDSSuccess(t *testing.T) {
 	got, err := UnmarshalCDS(rawResources)
 	assert.Nil(t, err)
 	assert.Equal(t, len(got), 1)
-	cluster := got[ClusterName1]
+	cluster := got[ClusterName1].(*ClusterResource)
 	assert.NotNil(t, cluster)
 	assert.Equal(t, cluster.EndpointName, EndpointName1)
 	assert.Equal(t, cluster.DiscoveryType, ClusterDiscoveryTypeEDS)

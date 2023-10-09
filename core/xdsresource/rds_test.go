@@ -31,13 +31,13 @@ func TestUnmarshalRDSError(t *testing.T) {
 	tests := []struct {
 		name         string
 		rawResources []*any.Any
-		want         map[string]*RouteConfigResource
+		want         map[string]Resource
 		wantErr      bool
 	}{
 		{
 			name:         "resource is nil",
 			rawResources: nil,
-			want:         map[string]*RouteConfigResource{},
+			want:         map[string]Resource{},
 			wantErr:      false,
 		},
 		{
@@ -45,7 +45,7 @@ func TestUnmarshalRDSError(t *testing.T) {
 			rawResources: []*any.Any{
 				{TypeUrl: EndpointTypeURL, Value: []byte{}},
 			},
-			want:    map[string]*RouteConfigResource{},
+			want:    map[string]Resource{},
 			wantErr: true,
 		},
 	}
@@ -113,7 +113,7 @@ func TestUnmarshalRDSSuccess(t *testing.T) {
 	got, err := UnmarshalRDS(rawResources)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(got))
-	routeConfig := got[routeConfigName]
+	routeConfig := got[routeConfigName].(*RouteConfigResource)
 	assert.NotNil(t, routeConfig)
 	assert.Equal(t, 1, len(routeConfig.HTTPRouteConfig.VirtualHosts))
 	vh := routeConfig.HTTPRouteConfig.VirtualHosts[0]
