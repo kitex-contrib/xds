@@ -553,6 +553,18 @@ func (c *xdsClient) handleResponse(msg interface{}) error {
 	return err
 }
 
+func (c *xdsClient) version(t xdsresource.ResourceType) string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.versionMap[t]
+}
+
+func (c *xdsClient) nonce(t xdsresource.ResourceType) string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.nonceMap[t]
+}
+
 func clearRequestCh(ch chan *discoveryv3.DiscoveryRequest, length int) {
 	for i := 0; i < length; i++ {
 		select {
