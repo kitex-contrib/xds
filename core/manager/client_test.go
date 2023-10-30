@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -128,21 +129,21 @@ func Test_xdsClient_handleResponse(t *testing.T) {
 	// handle before watch
 	err := c.handleResponse(mock.LdsResp1)
 	assert.Nil(t, err)
-	assert.Equal(t, c.versionMap[xdsresource.ListenerType], "")
-	assert.Equal(t, c.nonceMap[xdsresource.ListenerType], "")
+	assert.Equal(t, c.version(xdsresource.ListenerType), "")
+	assert.Equal(t, c.nonce(xdsresource.ListenerType), "")
 
 	// handle after watch
 	c.watchedResource[xdsresource.ListenerType] = make(map[string]bool)
 	err = c.handleResponse(mock.LdsResp1)
 	assert.Nil(t, err)
-	assert.Equal(t, c.versionMap[xdsresource.ListenerType], mock.LDSVersion1)
-	assert.Equal(t, c.nonceMap[xdsresource.ListenerType], mock.LDSNonce1)
+	assert.Equal(t, c.version(xdsresource.ListenerType), mock.LDSVersion1)
+	assert.Equal(t, c.nonce(xdsresource.ListenerType), mock.LDSNonce1)
 
 	c.watchedResource[xdsresource.RouteConfigType] = make(map[string]bool)
 	err = c.handleResponse(mock.RdsResp1)
 	assert.Nil(t, err)
-	assert.Equal(t, c.versionMap[xdsresource.RouteConfigType], mock.RDSVersion1)
-	assert.Equal(t, c.nonceMap[xdsresource.RouteConfigType], mock.RDSNonce1)
+	assert.Equal(t, c.version(xdsresource.RouteConfigType), mock.RDSVersion1)
+	assert.Equal(t, c.nonce(xdsresource.RouteConfigType), mock.RDSNonce1)
 }
 
 func TestReconnect(t *testing.T) {
@@ -152,8 +153,8 @@ func TestReconnect(t *testing.T) {
 	}
 	sendCh := make(chan *mockStatus)
 	recvCh := make(chan *mockStatus)
-	sendCnt, recvCnt := 0, 0
-	closed := false
+	sendCnt, recvCnt := int64(0), int64(0)
+	closed := int32(0)
 	defer func() {
 		close(sendCh)
 		close(recvCh)
@@ -162,12 +163,12 @@ func TestReconnect(t *testing.T) {
 	ac := &mockADSClient{
 		opt: &streamOpt{
 			sendFunc: func(req *discoveryv3.DiscoveryRequest) error {
-				sendCnt++
+				atomic.AddInt64(&sendCnt, 1)
 				return nil
 			},
 			recvFunc: func() (response *discoveryv3.DiscoveryResponse, err error) {
 				s := <-recvCh
-				recvCnt++
+				atomic.AddInt64(&recvCnt, 1)
 				if s.err != nil {
 					return nil, s.err
 				}
@@ -175,7 +176,7 @@ func TestReconnect(t *testing.T) {
 				return mock.EdsResp1, nil
 			},
 			closeFunc: func() error {
-				closed = true
+				atomic.StoreInt32(&closed, 1)
 				return nil
 			},
 		},
@@ -189,21 +190,22 @@ func TestReconnect(t *testing.T) {
 		},
 	}, ac, mockUpdater)
 	assert.Nil(t, err)
-	assert.Equal(t, cli.versionMap[xdsresource.EndpointsType], "")
+
+	assert.Equal(t, cli.version(xdsresource.EndpointsType), "")
 	cli.Watch(xdsresource.EndpointsType, xdsresource.EndpointName1, false)
 	// mock recv succeed
 	recvCh <- &mockStatus{err: nil}
 	time.Sleep(10 * time.Millisecond)
-	assert.Equal(t, cli.nonceMap[xdsresource.EndpointsType], mock.EdsResp1.Nonce)
+	assert.Equal(t, cli.nonce(xdsresource.EndpointsType), mock.EdsResp1.Nonce)
 	// mock recv failed, reconnect
 	recvCh <- &mockStatus{err: fmt.Errorf("recv failed")}
 	time.Sleep(10 * time.Millisecond)
-	assert.Equal(t, 2, recvCnt)
-	assert.Equal(t, true, closed)
-	assert.Equal(t, 3, sendCnt) // watch&ack and reconnect
+	assert.Equal(t, 2, int(atomic.LoadInt64(&recvCnt)))
+	assert.Equal(t, 1, int(atomic.LoadInt32(&closed)))
+	assert.Equal(t, 3, int(atomic.LoadInt64(&sendCnt))) // watch&ack and reconnect
 	// without resp, the nonce should be reset to empty. the version should not be reset.
-	assert.Equal(t, cli.nonceMap[xdsresource.EndpointsType], "")
-	assert.Equal(t, cli.versionMap[xdsresource.EndpointsType], mock.EdsResp1.VersionInfo)
+	assert.Equal(t, cli.nonce(xdsresource.ListenerType), "")
+	assert.Equal(t, cli.version(xdsresource.EndpointsType), mock.EdsResp1.VersionInfo)
 	_ = cli
 }
 
