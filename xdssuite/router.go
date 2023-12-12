@@ -96,7 +96,6 @@ func (r *XDSRouter) Route(ctx context.Context, ri rpcinfo.RPCInfo) (*RouteResult
 	}
 	// pick cluster from the matched route
 	cluster, err := pickCluster(route)
-	fmt.Println("pick cluster.....", cluster)
 	if err != nil {
 		return nil, fmt.Errorf("[XDS] Router, no cluster selected, err=%s", err)
 	}
@@ -148,7 +147,6 @@ func (r *XDSRouter) matchRoute(ctx context.Context, ri rpcinfo.RPCInfo) (*xdsres
 			return r, nil
 		}
 	}
-	fmt.Println("get the http route name", httpFilter.RouteConfigName)
 	// Get the route config
 	rds, err := r.manager.Get(ctx, xdsresource.RouteConfigType, httpFilter.RouteConfigName)
 	if err != nil {
