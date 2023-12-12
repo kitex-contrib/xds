@@ -145,7 +145,7 @@ func (m *xdsResourceManager) Get(ctx context.Context, rType xdsresource.Resource
 	}
 	m.mu.Unlock()
 	// Set fetch timeout
-	ctx, cancel := context.WithTimeout(ctx, m.opts.XDSSvrConfig.FetchXDSTimeout)
+	ctx, cancel := context.WithTimeout(ctx, m.opts.XDSSvrConfig.GetFetchXDSTimeout())
 	defer cancel()
 
 	select {

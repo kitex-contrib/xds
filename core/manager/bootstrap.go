@@ -48,6 +48,14 @@ type XDSServerConfig struct {
 	FetchXDSTimeout time.Duration // timeout for fecth xds, default to 1s
 }
 
+// GetFetchXDSTimeout get timeout.
+func (xsc XDSServerConfig) GetFetchXDSTimeout() time.Duration {
+	if xsc.FetchXDSTimeout == 0 {
+		return defaultXDSFetchTimeout
+	}
+	return xsc.FetchXDSTimeout
+}
+
 // newBootstrapConfig constructs the bootstrapConfig
 func newBootstrapConfig(config *XDSServerConfig) (*BootstrapConfig, error) {
 	// Get info from env
