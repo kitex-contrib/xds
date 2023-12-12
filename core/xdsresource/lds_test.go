@@ -104,9 +104,24 @@ func TestUnmarshallLDSThriftProxy(t *testing.T) {
 		r := tp.Routes[0]
 		assert.NotNil(t, r.Match)
 		assert.True(t, r.Match.MatchPath("method"))
-		for k, v := range map[string]string{"k1": "v1", "k2": "v2"} {
-			assert.Equal(t, v, r.Match.GetTags()[k])
-		}
+		assert.True(t, r.Match.GetTags().Match(map[string]string{
+			"k1": "v1",
+			"k2": "v2",
+			"k3": "prehello",
+			"k4": "a4",
+		}))
+		assert.True(t, r.Match.GetTags().Match(map[string]string{
+			"k1": "v1",
+			"k2": "v2",
+			"k3": "pre",
+			"k4": "a4",
+		}))
+		assert.False(t, r.Match.GetTags().Match(map[string]string{
+			"k1": "v1",
+			"k2": "v2",
+			"k3": "pr",
+			"k4": "a4",
+		}))
 		assert.NotNil(t, r.WeightedClusters)
 	}
 	f(lis.NetworkFilters[0])

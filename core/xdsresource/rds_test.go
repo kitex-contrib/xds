@@ -131,7 +131,7 @@ func TestHTTPRouteMatch_MatchPath(t *testing.T) {
 	type fields struct {
 		Path   string
 		Prefix string
-		Tags   map[string]string
+		Tags   Matchers
 	}
 	type args struct {
 		path string

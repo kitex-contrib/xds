@@ -96,6 +96,7 @@ func (r *XDSRouter) Route(ctx context.Context, ri rpcinfo.RPCInfo) (*RouteResult
 	}
 	// pick cluster from the matched route
 	cluster, err := pickCluster(route)
+	fmt.Println("pick cluster.....", cluster)
 	if err != nil {
 		return nil, fmt.Errorf("[XDS] Router, no cluster selected, err=%s", err)
 	}
@@ -147,6 +148,7 @@ func (r *XDSRouter) matchRoute(ctx context.Context, ri rpcinfo.RPCInfo) (*xdsres
 			return r, nil
 		}
 	}
+	fmt.Println("get the http route name", httpFilter.RouteConfigName)
 	// Get the route config
 	rds, err := r.manager.Get(ctx, xdsresource.RouteConfigType, httpFilter.RouteConfigName)
 	if err != nil {
@@ -201,19 +203,7 @@ func matchThriftRoute(md map[string]string, ri rpcinfo.RPCInfo, routeConfig *xds
 
 // routeMatched checks if the route matches the info provided in the RPCInfo
 func routeMatched(path string, md map[string]string, r *xdsresource.Route) bool {
-	if r.Match != nil && r.Match.MatchPath(path) {
-		tagMatched := true
-		for mk, mv := range r.Match.GetTags() {
-			if v, ok := md[mk]; !ok || v != mv {
-				tagMatched = false
-				break
-			}
-		}
-		if tagMatched {
-			return true
-		}
-	}
-	return false
+	return r.Match != nil && r.Match.MatchPath(path) && r.Match.GetTags().Match(md)
 }
 
 // pickCluster selects cluster based on the weight

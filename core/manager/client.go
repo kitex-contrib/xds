@@ -406,6 +406,7 @@ func (c *xdsClient) handleLDS(resp *discoveryv3.DiscoveryResponse) error {
 	res, err := xdsresource.UnmarshalLDS(resp.GetResources())
 	c.updateAndACK(xdsresource.ListenerType, resp.GetNonce(), resp.GetVersionInfo(), err)
 	if err != nil {
+		klog.Warnf("KITEX: [XDS] unmarshal lds response error:%v", err)
 		return err
 	}
 
@@ -418,6 +419,7 @@ func (c *xdsClient) handleLDS(resp *discoveryv3.DiscoveryResponse) error {
 		if c.ndsRequired() {
 			ln, err := c.getListenerName(n)
 			if err != nil || ln == "" {
+				klog.Warnf("KITEX: [XDS] get listener name %s failed, err: %v", n, err)
 				continue
 			}
 			if lis, ok := res[ln]; ok {

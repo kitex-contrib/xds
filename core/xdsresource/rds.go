@@ -22,7 +22,6 @@ import (
 	"time"
 
 	v3routepb "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
-	matcherv3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"github.com/golang/protobuf/ptypes/any"
 	"google.golang.org/protobuf/proto"
 )
@@ -62,19 +61,19 @@ type Route struct {
 
 type RouteMatch interface {
 	MatchPath(path string) bool
-	GetTags() map[string]string
+	GetTags() Matchers
 }
 
 type HTTPRouteMatch struct {
 	Path   string
 	Prefix string
-	Tags   map[string]string
+	Tags   Matchers
 }
 
 type ThriftRouteMatch struct {
 	Method      string
 	ServiceName string
-	Tags        map[string]string
+	Tags        Matchers
 }
 
 func (tm *ThriftRouteMatch) MatchPath(path string) bool {
@@ -84,7 +83,7 @@ func (tm *ThriftRouteMatch) MatchPath(path string) bool {
 	return true
 }
 
-func (tm *ThriftRouteMatch) GetTags() map[string]string {
+func (tm *ThriftRouteMatch) GetTags() Matchers {
 	return tm.Tags
 }
 
@@ -96,7 +95,7 @@ func (rm *HTTPRouteMatch) MatchPath(path string) bool {
 	return rm.Prefix == "/"
 }
 
-func (rm *HTTPRouteMatch) GetTags() map[string]string {
+func (rm *HTTPRouteMatch) GetTags() Matchers {
 	return rm.Tags
 }
 
@@ -133,24 +132,7 @@ func unmarshalRoutes(rs []*v3routepb.Route) ([]*Route, error) {
 			// default:
 			//	return nil, fmt.Errorf("only support path match")
 		}
-		// header match
-		tags := make(map[string]string)
-		if hs := match.GetHeaders(); hs != nil {
-			for _, h := range hs {
-				var v string
-				switch hm := h.GetHeaderMatchSpecifier().(type) {
-				case *v3routepb.HeaderMatcher_StringMatch:
-					switch p := hm.StringMatch.GetMatchPattern().(type) {
-					case *matcherv3.StringMatcher_Exact:
-						v = p.Exact
-					}
-				}
-				if v != "" {
-					tags[h.Name] = v
-				}
-			}
-		}
-		routeMatch.Tags = tags
+		routeMatch.Tags = BuildMatchers(match.GetHeaders())
 		route.Match = routeMatch
 		// action
 		action := r.GetAction()
