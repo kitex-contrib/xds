@@ -61,19 +61,20 @@ type Route struct {
 
 type RouteMatch interface {
 	MatchPath(path string) bool
-	GetTags() Matchers
+	// default use headers to match the meta.
+	MatchMeta(map[string]string) bool
 }
 
 type HTTPRouteMatch struct {
-	Path   string
-	Prefix string
-	Tags   Matchers
+	Path    string
+	Prefix  string
+	Headers Matchers
 }
 
 type ThriftRouteMatch struct {
 	Method      string
 	ServiceName string
-	Tags        Matchers
+	Headers     Matchers
 }
 
 func (tm *ThriftRouteMatch) MatchPath(path string) bool {
@@ -83,8 +84,8 @@ func (tm *ThriftRouteMatch) MatchPath(path string) bool {
 	return true
 }
 
-func (tm *ThriftRouteMatch) GetTags() Matchers {
-	return tm.Tags
+func (tm *ThriftRouteMatch) MatchMeta(md map[string]string) bool {
+	return tm.Headers.Match(md)
 }
 
 func (rm *HTTPRouteMatch) MatchPath(path string) bool {
@@ -95,8 +96,8 @@ func (rm *HTTPRouteMatch) MatchPath(path string) bool {
 	return rm.Prefix == "/"
 }
 
-func (rm *HTTPRouteMatch) GetTags() Matchers {
-	return rm.Tags
+func (rm *HTTPRouteMatch) MatchMeta(md map[string]string) bool {
+	return rm.Headers.Match(md)
 }
 
 func (r *Route) MarshalJSON() ([]byte, error) {
@@ -132,7 +133,7 @@ func unmarshalRoutes(rs []*v3routepb.Route) ([]*Route, error) {
 			// default:
 			//	return nil, fmt.Errorf("only support path match")
 		}
-		routeMatch.Tags = BuildMatchers(match.GetHeaders())
+		routeMatch.Headers = BuildMatchers(match.GetHeaders())
 		route.Match = routeMatch
 		// action
 		action := r.GetAction()

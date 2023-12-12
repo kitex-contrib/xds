@@ -37,8 +37,9 @@ var (
 		Id: "sidecar~kitex-test-node",
 	}
 	XdsServerConfig = &XDSServerConfig{
-		SvrAddr: XdsServerAddress,
-		SvrName: IstiodSvrName,
+		SvrAddr:         XdsServerAddress,
+		SvrName:         IstiodSvrName,
+		FetchXDSTimeout: defaultXDSFetchTimeout,
 	}
 	XdsBootstrapConfig = &BootstrapConfig{
 		node:      NodeProto,

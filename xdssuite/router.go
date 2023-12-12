@@ -203,7 +203,7 @@ func matchThriftRoute(md map[string]string, ri rpcinfo.RPCInfo, routeConfig *xds
 
 // routeMatched checks if the route matches the info provided in the RPCInfo
 func routeMatched(path string, md map[string]string, r *xdsresource.Route) bool {
-	return r.Match != nil && r.Match.MatchPath(path) && r.Match.GetTags().Match(md)
+	return r.Match != nil && r.Match.MatchPath(path) && r.Match.MatchMeta(md)
 }
 
 // pickCluster selects cluster based on the weight

@@ -165,7 +165,7 @@ func unmarshalThriftProxy(rawResources *any.Any) (*RouteConfigResource, error) {
 		case *v3thrift_proxy.RouteMatch_ServiceName:
 			routeMatch.ServiceName = t.ServiceName
 		}
-		routeMatch.Tags = BuildMatchers(match.GetHeaders())
+		routeMatch.Headers = BuildMatchers(match.GetHeaders())
 		route.Match = routeMatch
 		// action
 		action := r.Route

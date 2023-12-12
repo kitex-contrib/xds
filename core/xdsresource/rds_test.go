@@ -188,9 +188,9 @@ func TestHTTPRouteMatch_MatchPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rm := &HTTPRouteMatch{
-				Path:   tt.fields.Path,
-				Prefix: tt.fields.Prefix,
-				Tags:   tt.fields.Tags,
+				Path:    tt.fields.Path,
+				Prefix:  tt.fields.Prefix,
+				Headers: tt.fields.Tags,
 			}
 			if got := rm.MatchPath(tt.args.path); got != tt.want {
 				t.Errorf("MatchPath() = %v, want %v", got, tt.want)
