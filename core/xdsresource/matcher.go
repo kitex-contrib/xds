@@ -80,7 +80,7 @@ func BuildMatchers(headers []*v3.HeaderMatcher) Matchers {
 				if p.SafeRegex != nil && p.SafeRegex.Regex != "" {
 					re2, err := regexp.Compile(p.SafeRegex.Regex)
 					if err != nil {
-						klog.Warnf("compile regexp failed err:", err)
+						klog.Warnf("KITEX: [XDS] compile regexp %s failed when BuildMatchers,  err:", p.SafeRegex.Regex, err)
 						continue
 					}
 					ms[header.Name] = &RegexMatcher{
