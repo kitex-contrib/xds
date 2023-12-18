@@ -74,7 +74,7 @@ type HTTPRouteMatch struct {
 type ThriftRouteMatch struct {
 	Method      string
 	ServiceName string
-	Headers     Matchers
+	Tags     Matchers
 }
 
 func (tm *ThriftRouteMatch) MatchPath(path string) bool {
@@ -85,7 +85,7 @@ func (tm *ThriftRouteMatch) MatchPath(path string) bool {
 }
 
 func (tm *ThriftRouteMatch) MatchMeta(md map[string]string) bool {
-	return tm.Headers.Match(md)
+	return tm.Tags.Match(md)
 }
 
 func (rm *HTTPRouteMatch) MatchPath(path string) bool {
