@@ -33,7 +33,7 @@ func TestParseMetaEnvs(t *testing.T) {
 	}{
 		{
 			desc:         "",
-			envs:         "cluster=c1,domain=d1",
+			envs:         `{"cluster": "c1", "domain": "d1"}`,
 			istioVersion: "1.16.3",
 			want: &structpb.Struct{
 				Fields: map[string]*structpb.Value{

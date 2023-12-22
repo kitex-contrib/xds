@@ -22,7 +22,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudwego/kitex/pkg/klog"
 	v3core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	"github.com/golang/protobuf/jsonpb"
 	structpb "github.com/golang/protobuf/ptypes/struct"
 )
 
@@ -32,7 +34,7 @@ const (
 	InstanceIP     = "INSTANCE_IP"
 	IstiodAddr     = "istiod.istio-system.svc:15010"
 	KitexXdsDomain = "KITEX_XDS_DOMAIN"
-	// the format of value must be key1=val1,key2=val2
+	// use json to marshal it.
 	KitexXdsMetas     = "KITEX_XDS_METAS"
 	IstiodSvrName     = "istiod.istio-system.svc"
 	IstioVersion      = "ISTIO_VERSION"
@@ -62,17 +64,6 @@ func (xsc XDSServerConfig) GetFetchXDSTimeout() time.Duration {
 }
 
 func parseMetaEnvs(envs, istioVersion string) *structpb.Struct {
-	metas := map[string]string{
-		"ISTIO_VERSION": istioVersion,
-	}
-	parts := strings.Split(envs, metaSeparator)
-	for idx := range parts {
-		kvs := strings.Split(parts[idx], keyValueSeparator)
-		if len(kvs) != 2 {
-			continue
-		}
-		metas[kvs[0]] = kvs[1]
-	}
 	pbmeta := &structpb.Struct{
 		Fields: map[string]*structpb.Value{
 			IstioVersion: {
@@ -80,10 +71,9 @@ func parseMetaEnvs(envs, istioVersion string) *structpb.Struct {
 			},
 		},
 	}
-	for key, val := range metas {
-		pbmeta.Fields[key] = &structpb.Value{
-			Kind: &structpb.Value_StringValue{StringValue: val},
-		}
+	err := jsonpb.Unmarshal(strings.NewReader(envs), pbmeta)
+	if err != nil {
+		klog.Warnf("[Kitex] XDS meta info is invalied %s", envs)
 	}
 	return pbmeta
 }
