@@ -19,6 +19,7 @@ package manager
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	v3core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -26,13 +27,17 @@ import (
 )
 
 const (
-	PodNamespace  = "POD_NAMESPACE"
-	PodName       = "POD_NAME"
-	InstanceIP    = "INSTANCE_IP"
-	IstiodAddr    = "istiod.istio-system.svc:15010"
-	IstiodSvrName = "istiod.istio-system.svc"
-	IstioVersion  = "ISTIO_VERSION"
-	nodeIDSuffix  = "svc.cluster.local"
+	PodNamespace   = "POD_NAMESPACE"
+	PodName        = "POD_NAME"
+	InstanceIP     = "INSTANCE_IP"
+	IstiodAddr     = "istiod.istio-system.svc:15010"
+	KitexXdsDomain = "KITEX_XDS_DOMAIN"
+	// the format of value must be key1=val1,key2=val2
+	KitexXdsMetas     = "KITEX_XDS_METAS"
+	IstiodSvrName     = "istiod.istio-system.svc"
+	IstioVersion      = "ISTIO_VERSION"
+	metaSeparator     = ","
+	keyValueSeparator = "="
 )
 
 type BootstrapConfig struct {
@@ -56,6 +61,38 @@ func (xsc XDSServerConfig) GetFetchXDSTimeout() time.Duration {
 	return xsc.FetchXDSTimeout
 }
 
+func parseMetaEnvs(envs, istioVersion string) *structpb.Struct {
+	metas := map[string]string{
+		"ISTIO_VERSION": istioVersion,
+	}
+	parts := strings.Split(envs, metaSeparator)
+	for idx := range parts {
+		kvs := strings.Split(parts[idx], keyValueSeparator)
+		if len(kvs) != 2 {
+			continue
+		}
+		metas[kvs[0]] = kvs[1]
+	}
+	pbmeta := &structpb.Struct{
+		Fields: map[string]*structpb.Value{
+			IstioVersion: {
+				Kind: &structpb.Value_StringValue{StringValue: istioVersion},
+			},
+		},
+	}
+	for key, val := range metas {
+		pbmeta.Fields[key] = &structpb.Value{
+			Kind: &structpb.Value_StringValue{StringValue: val},
+		}
+	}
+	return pbmeta
+}
+
+func nodeId(podIP, podName, namespace, nodeDomain string) string {
+	//"sidecar~" + podIP + "~" + podName + "." + namespace + "~" + namespace + ".svc." + domain,
+	return fmt.Sprintf("sidecar~%s~%s.%s~%s.svc.%s", podIP, podName, namespace, namespace, nodeDomain)
+}
+
 // newBootstrapConfig constructs the bootstrapConfig
 func newBootstrapConfig(config *XDSServerConfig) (*BootstrapConfig, error) {
 	// Get info from env
@@ -77,18 +114,17 @@ func newBootstrapConfig(config *XDSServerConfig) (*BootstrapConfig, error) {
 	}
 	// specify the version of istio in case of the canary deployment of istiod
 	istioVersion := os.Getenv(IstioVersion)
+	nodeDomain := os.Getenv(KitexXdsDomain)
+	if nodeDomain == "" {
+		nodeDomain = "cluster.local"
+	}
+
+	metaEnvs := os.Getenv(KitexXdsMetas)
 
 	return &BootstrapConfig{
 		node: &v3core.Node{
-			//"sidecar~" + podIP + "~" + podName + "." + namespace + "~" + namespace + ".svc.cluster.local",
-			Id: fmt.Sprintf("sidecar~%s~%s.%s~%s.%s", podIP, podName, namespace, namespace, nodeIDSuffix),
-			Metadata: &structpb.Struct{
-				Fields: map[string]*structpb.Value{
-					"ISTIO_VERSION": {
-						Kind: &structpb.Value_StringValue{StringValue: istioVersion},
-					},
-				},
-			},
+			Id:       nodeId(podIP, podName, namespace, nodeDomain),
+			Metadata: parseMetaEnvs(metaEnvs, istioVersion),
 		},
 		xdsSvrCfg: config,
 	}, nil
