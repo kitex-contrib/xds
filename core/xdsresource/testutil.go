@@ -68,6 +68,28 @@ var (
 									},
 								},
 							},
+							{
+								Name: "k3",
+								HeaderMatchSpecifier: &v3routepb.HeaderMatcher_StringMatch{
+									StringMatch: &v3matcher.StringMatcher{
+										MatchPattern: &v3matcher.StringMatcher_Prefix{
+											Prefix: "pre",
+										},
+									},
+								},
+							},
+							{
+								Name: "k4",
+								HeaderMatchSpecifier: &v3routepb.HeaderMatcher_StringMatch{
+									StringMatch: &v3matcher.StringMatcher{
+										MatchPattern: &v3matcher.StringMatcher_SafeRegex{
+											SafeRegex: &v3matcher.RegexMatcher{
+												Regex: "[a-z][1-9]",
+											},
+										},
+									},
+								},
+							},
 						},
 					},
 					Route: &v3thrift_proxy.RouteAction{

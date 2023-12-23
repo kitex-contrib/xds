@@ -23,7 +23,6 @@ import (
 	v3routepb "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	v3httppb "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	v3thrift_proxy "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/thrift_proxy/v3"
-	v3matcher "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"github.com/golang/protobuf/ptypes/any"
 	"google.golang.org/protobuf/proto"
 )
@@ -166,24 +165,7 @@ func unmarshalThriftProxy(rawResources *any.Any) (*RouteConfigResource, error) {
 		case *v3thrift_proxy.RouteMatch_ServiceName:
 			routeMatch.ServiceName = t.ServiceName
 		}
-		// header match
-		tags := make(map[string]string)
-		if hs := match.GetHeaders(); hs != nil {
-			for _, h := range hs {
-				var v string
-				switch hm := h.GetHeaderMatchSpecifier().(type) {
-				case *v3routepb.HeaderMatcher_StringMatch:
-					switch p := hm.StringMatch.GetMatchPattern().(type) {
-					case *v3matcher.StringMatcher_Exact:
-						v = p.Exact
-					}
-				}
-				if v != "" {
-					tags[h.Name] = v
-				}
-			}
-		}
-		routeMatch.Tags = tags
+		routeMatch.Tags = BuildMatchers(match.GetHeaders())
 		route.Match = routeMatch
 		// action
 		action := r.Route

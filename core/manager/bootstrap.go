@@ -19,6 +19,7 @@ package manager
 import (
 	"fmt"
 	"os"
+	"time"
 
 	v3core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	structpb "github.com/golang/protobuf/ptypes/struct"
@@ -40,10 +41,19 @@ type BootstrapConfig struct {
 }
 
 type XDSServerConfig struct {
-	SvrName        string // The name of the xDS server
-	SvrAddr        string // The address of the xDS server
-	XDSAuth        bool   // If this xDS enable the authentication of xDS stream
-	NDSNotRequired bool   // required by default for Istio
+	SvrName         string        // The name of the xDS server
+	SvrAddr         string        // The address of the xDS server
+	XDSAuth         bool          // If this xDS enable the authentication of xDS stream
+	NDSNotRequired  bool          // required by default for Istio
+	FetchXDSTimeout time.Duration // timeout for fecth xds, default to 1s
+}
+
+// GetFetchXDSTimeout get timeout.
+func (xsc XDSServerConfig) GetFetchXDSTimeout() time.Duration {
+	if xsc.FetchXDSTimeout == 0 {
+		return defaultXDSFetchTimeout
+	}
+	return xsc.FetchXDSTimeout
 }
 
 // newBootstrapConfig constructs the bootstrapConfig
@@ -61,6 +71,9 @@ func newBootstrapConfig(config *XDSServerConfig) (*BootstrapConfig, error) {
 	podIP := os.Getenv(InstanceIP)
 	if podIP == "" {
 		return nil, fmt.Errorf("[XDS] Bootstrap, INSTANCE_IP is not set in env")
+	}
+	if config.FetchXDSTimeout == 0 {
+		config.FetchXDSTimeout = defaultXDSFetchTimeout
 	}
 	// specify the version of istio in case of the canary deployment of istiod
 	istioVersion := os.Getenv(IstioVersion)
