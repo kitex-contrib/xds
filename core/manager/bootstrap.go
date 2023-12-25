@@ -19,13 +19,12 @@ package manager
 import (
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/cloudwego/kitex/pkg/klog"
 	v3core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-	"github.com/golang/protobuf/jsonpb"
 	structpb "github.com/golang/protobuf/ptypes/struct"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const (
@@ -65,15 +64,15 @@ func (xsc XDSServerConfig) GetFetchXDSTimeout() time.Duration {
 
 func parseMetaEnvs(envs, istioVersion string) *structpb.Struct {
 	pbmeta := &structpb.Struct{
-		Fields: map[string]*structpb.Value{
-			IstioVersion: {
-				Kind: &structpb.Value_StringValue{StringValue: istioVersion},
-			},
-		},
+		Fields: map[string]*structpb.Value{},
 	}
-	err := jsonpb.Unmarshal(strings.NewReader(envs), pbmeta)
+	err := protojson.Unmarshal([]byte(envs), pbmeta)
 	if err != nil {
 		klog.Warnf("[Kitex] XDS meta info is invalid %s", envs)
+	}
+
+	pbmeta.Fields[IstioVersion] = &structpb.Value{
+		Kind: &structpb.Value_StringValue{StringValue: istioVersion},
 	}
 	return pbmeta
 }
