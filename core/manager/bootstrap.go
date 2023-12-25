@@ -73,7 +73,7 @@ func parseMetaEnvs(envs, istioVersion string) *structpb.Struct {
 	}
 	err := jsonpb.Unmarshal(strings.NewReader(envs), pbmeta)
 	if err != nil {
-		klog.Warnf("[Kitex] XDS meta info is invalied %s", envs)
+		klog.Warnf("[Kitex] XDS meta info is invalid %s", envs)
 	}
 	return pbmeta
 }
