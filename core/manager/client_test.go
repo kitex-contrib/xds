@@ -169,7 +169,7 @@ func TestReconnect(t *testing.T) {
 			recvFunc: func() (response *discoveryv3.DiscoveryResponse, err error) {
 				s := <-recvCh
 				atomic.AddInt64(&recvCnt, 1)
-				if s.err != nil {
+				if s != nil && s.err != nil {
 					return nil, s.err
 				}
 				// handle eds will not trigger new send
