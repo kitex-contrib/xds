@@ -32,19 +32,43 @@ func TestParseMetaEnvs(t *testing.T) {
 		want         *structpb.Struct
 	}{
 		{
-			desc:         "",
-			envs:         `{"cluster": "c1", "domain": "d1"}`,
+			desc:         "success",
+			envs:         `{"cluster": "c1", "domain": "d1", "ISTIO_VERSION": "1.16.5"}`,
 			istioVersion: "1.16.3",
 			want: &structpb.Struct{
 				Fields: map[string]*structpb.Value{
 					IstioVersion: {
-						Kind: &structpb.Value_StringValue{StringValue: "1.16.3"},
+						Kind: &structpb.Value_StringValue{StringValue: "1.16.5"},
 					},
 					"cluster": {
 						Kind: &structpb.Value_StringValue{StringValue: "c1"},
 					},
 					"domain": {
 						Kind: &structpb.Value_StringValue{StringValue: "d1"},
+					},
+				},
+			},
+		},
+		{
+			desc:         "default",
+			envs:         ``,
+			istioVersion: "1.16.3",
+			want: &structpb.Struct{
+				Fields: map[string]*structpb.Value{
+					IstioVersion: {
+						Kind: &structpb.Value_StringValue{StringValue: "1.16.3"},
+					},
+				},
+			},
+		},
+		{
+			desc:         "fault",
+			envs:         `{ISTIO_VERSION: 1.16.3}`,
+			istioVersion: "1.16.3",
+			want: &structpb.Struct{
+				Fields: map[string]*structpb.Value{
+					IstioVersion: {
+						Kind: &structpb.Value_StringValue{StringValue: "1.16.3"},
 					},
 				},
 			},

@@ -63,16 +63,24 @@ func (xsc XDSServerConfig) GetFetchXDSTimeout() time.Duration {
 }
 
 func parseMetaEnvs(envs, istioVersion string) *structpb.Struct {
+	defaultMeta := &structpb.Struct{
+		Fields: map[string]*structpb.Value{
+			IstioVersion: {
+				Kind: &structpb.Value_StringValue{StringValue: istioVersion},
+			},
+		},
+	}
+	if len(envs) == 0 {
+		return defaultMeta
+	}
+
 	pbmeta := &structpb.Struct{
 		Fields: map[string]*structpb.Value{},
 	}
 	err := protojson.Unmarshal([]byte(envs), pbmeta)
 	if err != nil {
-		klog.Warnf("[Kitex] XDS meta info is invalid %s", envs)
-	}
-
-	pbmeta.Fields[IstioVersion] = &structpb.Value{
-		Kind: &structpb.Value_StringValue{StringValue: istioVersion},
+		klog.Warnf("[Kitex] XDS meta info is invalid %s, error %v", envs, err)
+		return defaultMeta
 	}
 	return pbmeta
 }
