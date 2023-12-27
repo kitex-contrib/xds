@@ -34,11 +34,9 @@ const (
 	IstiodAddr     = "istiod.istio-system.svc:15010"
 	KitexXdsDomain = "KITEX_XDS_DOMAIN"
 	// use json to marshal it.
-	KitexXdsMetas     = "KITEX_XDS_METAS"
-	IstiodSvrName     = "istiod.istio-system.svc"
-	IstioVersion      = "ISTIO_VERSION"
-	metaSeparator     = ","
-	keyValueSeparator = "="
+	KitexXdsMetas = "KITEX_XDS_METAS"
+	IstiodSvrName = "istiod.istio-system.svc"
+	IstioVersion  = "ISTIO_VERSION"
 )
 
 type BootstrapConfig struct {
