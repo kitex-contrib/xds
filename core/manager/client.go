@@ -385,6 +385,27 @@ func (c *xdsClient) sendRequest(req *discoveryv3.DiscoveryRequest) {
 	c.reqCh <- req
 }
 
+func (c *xdsClient) resolveAddr(host string) string {
+	// In the worst case, lookupHost is called twice, try to reduce it.
+	// May exists three kind host:
+	// 1. fqdn host in Kubernetes, such as example.default.svc.cluster.local, invoke once always.
+	// 2. short name in Kubernetes, such as example, invoke once when the host exists in cipResolver, and twice when the host does not exist in cipResolver.
+	// 3. service outside Kubernetes, such as www.example.com, invoke twice always.
+	// FIXME: format as <serviceName>.<namespace> is not supported.
+	fqdn := c.config.tryExpandFQDN(host)
+	cip, ok := c.cipResolver.lookupHost(fqdn)
+	if ok && len(cip) > 0 {
+		return cip[0]
+	}
+	if fqdn != host {
+		cip, ok := c.cipResolver.lookupHost(host)
+		if ok && len(cip) > 0 {
+			return cip[0]
+		}
+	}
+	return ""
+}
+
 // getListenerName returns the listener name in this format: ${clusterIP}_${port}
 // lookup the clusterIP using the cipResolver and return the listenerName
 func (c *xdsClient) getListenerName(rName string) (string, error) {
@@ -393,10 +414,9 @@ func (c *xdsClient) getListenerName(rName string) (string, error) {
 		return "", fmt.Errorf("invalid listener name: %s", rName)
 	}
 	addr, port := tmp[0], tmp[1]
-	cip, ok := c.cipResolver.lookupHost(addr)
-	if ok && len(cip) > 0 {
-		clusterIPPort := cip[0] + "_" + port
-		return clusterIPPort, nil
+	cip := c.resolveAddr(addr)
+	if len(cip) > 0 {
+		return cip + "_" + port, nil
 	}
 	return "", fmt.Errorf("failed to convert listener name for %s", rName)
 }

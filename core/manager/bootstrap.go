@@ -19,6 +19,7 @@ package manager
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/cloudwego/kitex/pkg/klog"
@@ -30,6 +31,7 @@ import (
 const (
 	PodNamespace   = "POD_NAMESPACE"
 	PodName        = "POD_NAME"
+	MetaNamespace  = "NAMESPACE"
 	InstanceIP     = "INSTANCE_IP"
 	IstiodAddr     = "istiod.istio-system.svc:15010"
 	KitexXdsDomain = "KITEX_XDS_DOMAIN"
@@ -40,8 +42,12 @@ const (
 )
 
 type BootstrapConfig struct {
-	node      *v3core.Node
-	xdsSvrCfg *XDSServerConfig
+	// The namespace to make up fqdn.
+	// Use POD_NAMESPACE default, the meta namespace will override that if set.
+	configNamespace string
+	nodeDomain      string
+	node            *v3core.Node
+	xdsSvrCfg       *XDSServerConfig
 }
 
 type XDSServerConfig struct {
@@ -88,6 +94,23 @@ func nodeId(podIP, podName, namespace, nodeDomain string) string {
 	return fmt.Sprintf("sidecar~%s~%s.%s~%s.svc.%s", podIP, podName, namespace, namespace, nodeDomain)
 }
 
+// tryExpandFQDN try expand fully qualified domain name.
+func (bc *BootstrapConfig) tryExpandFQDN(host string) string {
+	// The kubernetes services following the <serviceName>.<ns>.svc.<suffix> naming convention
+	// and that share a suffix with the domain. If it already been expanded, ignore it.
+	if strings.Contains(host, ".svc.") {
+		return host
+	}
+	var b strings.Builder
+	b.Grow(len(host) + len(bc.configNamespace) + len(bc.nodeDomain) + 10)
+	b.WriteString(host)
+	b.WriteString(".")
+	b.WriteString(bc.configNamespace)
+	b.WriteString(".svc.")
+	b.WriteString(bc.nodeDomain)
+	return b.String()
+}
+
 // newBootstrapConfig constructs the bootstrapConfig
 func newBootstrapConfig(config *XDSServerConfig) (*BootstrapConfig, error) {
 	// Get info from env
@@ -114,13 +137,22 @@ func newBootstrapConfig(config *XDSServerConfig) (*BootstrapConfig, error) {
 		nodeDomain = "cluster.local"
 	}
 
-	metaEnvs := os.Getenv(KitexXdsMetas)
-
-	return &BootstrapConfig{
+	bsConfig := &BootstrapConfig{
+		nodeDomain:      nodeDomain,
+		configNamespace: namespace,
 		node: &v3core.Node{
 			Id:       nodeId(podIP, podName, namespace, nodeDomain),
-			Metadata: parseMetaEnvs(metaEnvs, istioVersion),
+			Metadata: parseMetaEnvs(os.Getenv(KitexXdsMetas), istioVersion),
 		},
 		xdsSvrCfg: config,
-	}, nil
+	}
+
+	// the priority of NAMESPACE in metadata is higher than POD_NAMESPACE.
+	// ref: https://github.com/istio/istio/blob/30446a7b88aba4a0fcd5f71bae8d397a874e846f/pilot/pkg/model/context.go#L1024
+	if field, ok := bsConfig.node.Metadata.Fields[MetaNamespace]; ok {
+		if val := field.GetStringValue(); val != "" {
+			bsConfig.configNamespace = val
+		}
+	}
+	return bsConfig, nil
 }

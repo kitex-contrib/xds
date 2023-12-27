@@ -218,3 +218,45 @@ func TestClearCh(t *testing.T) {
 	clearRequestCh(ch, 10)
 	assert.Equal(t, 0, len(ch))
 }
+
+func TestResolveAddr(t *testing.T) {
+	resolver := newNdsResolver()
+	resolver.updateLookupTable(map[string][]string{
+		"echoa.default.svc.cluster.local": {"1.1.1.1"},
+		"echob.default.svc.cluster.local": {"1.1.1.1"},
+	})
+	cli := &xdsClient{
+		cipResolver: resolver,
+		config: &BootstrapConfig{
+			configNamespace: "default",
+			nodeDomain:      "cluster.local",
+		},
+	}
+	testCases := []struct {
+		desc string
+		host string
+		want string
+	}{
+		{
+			desc: "fqdn",
+			host: "echoa.default.svc.cluster.local",
+			want: "1.1.1.1",
+		},
+		{
+			desc: "short name",
+			host: "echoa",
+			want: "1.1.1.1",
+		},
+		{
+			desc: "not found",
+			host: "echoa.default",
+			want: "",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			got := cli.resolveAddr(tc.host)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
