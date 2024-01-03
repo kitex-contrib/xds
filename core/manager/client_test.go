@@ -222,8 +222,9 @@ func TestClearCh(t *testing.T) {
 func TestResolveAddr(t *testing.T) {
 	resolver := newNdsResolver()
 	resolver.updateLookupTable(map[string][]string{
-		"echoa.default.svc.cluster.local": {"1.1.1.1"},
-		"echob.default.svc.cluster.local": {"1.1.1.1"},
+		"echoa.default.svc.cluster.local":  {"1.1.1.1"},
+		"echoa.default1.svc.cluster.local": {"1.1.1.1"},
+		"echob.default.svc.cluster.local":  {"1.1.1.1"},
 	})
 	cli := &xdsClient{
 		cipResolver: resolver,
@@ -248,8 +249,18 @@ func TestResolveAddr(t *testing.T) {
 			want: "1.1.1.1",
 		},
 		{
-			desc: "not found",
+			desc: "contain namespace",
 			host: "echoa.default",
+			want: "1.1.1.1",
+		},
+		{
+			desc: "contain namespace",
+			host: "echoa.default1",
+			want: "1.1.1.1",
+		},
+		{
+			desc: "not found",
+			host: "echoa.default.svc",
 			want: "",
 		},
 	}

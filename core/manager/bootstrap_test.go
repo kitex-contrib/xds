@@ -67,7 +67,6 @@ func TestTryExpandFQDN(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestParseMetaEnvs(t *testing.T) {
