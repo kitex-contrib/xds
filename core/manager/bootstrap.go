@@ -101,11 +101,18 @@ func (bc *BootstrapConfig) tryExpandFQDN(host string) string {
 	if strings.Contains(host, ".svc.") {
 		return host
 	}
+
 	var b strings.Builder
 	b.Grow(len(host) + len(bc.configNamespace) + len(bc.nodeDomain) + 10)
 	b.WriteString(host)
-	b.WriteString(".")
-	b.WriteString(bc.configNamespace)
+
+	// the regex for Kubernetes service is [a-z]([-a-z0-9]*[a-z0-9])?, it should not contains `.` in it
+	// if the host not contains namespace.
+	if !strings.Contains(host, ".") {
+		b.WriteString(".")
+		b.WriteString(bc.configNamespace)
+	}
+
 	b.WriteString(".svc.")
 	b.WriteString(bc.nodeDomain)
 	return b.String()
