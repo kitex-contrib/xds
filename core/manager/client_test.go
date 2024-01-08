@@ -259,8 +259,23 @@ func TestResolveAddr(t *testing.T) {
 			want: "1.1.1.1",
 		},
 		{
-			desc: "not found",
+			desc: "make up svc",
 			host: "echoa.default.svc",
+			want: "1.1.1.1",
+		},
+		{
+			desc: "not found",
+			host: "echoa.default.svc.cluster",
+			want: "",
+		},
+		{
+			desc: "not found",
+			host: "echoa.default2",
+			want: "",
+		},
+		{
+			desc: "not found",
+			host: "echoc.default",
 			want: "",
 		},
 	}
