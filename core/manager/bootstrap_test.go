@@ -58,6 +58,15 @@ func TestTryExpandFQDN(t *testing.T) {
 				configNamespace: "default",
 			},
 		},
+		{
+			desc: "error",
+			host: "servicea.bookinfo.svc",
+			want: "servicea.bookinfo.svc.cluster.local",
+			bsc: &BootstrapConfig{
+				nodeDomain:      "cluster.local",
+				configNamespace: "default",
+			},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
