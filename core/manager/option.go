@@ -38,7 +38,7 @@ func DefaultOptions() *Options {
 		XDSSvrConfig: &XDSServerConfig{
 			SvrAddr: IstiodAddr,
 			SvrName: IstiodSvrName,
-			XDSAuth: false,
+			XDSAuth: IstioAuthEnable,
 		},
 		DumpPath: defaultDumpPath,
 	}

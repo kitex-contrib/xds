@@ -33,13 +33,38 @@ const (
 	PodName        = "POD_NAME"
 	MetaNamespace  = "NAMESPACE"
 	InstanceIP     = "INSTANCE_IP"
-	IstiodAddr     = "istiod.istio-system.svc:15010"
 	KitexXdsDomain = "KITEX_XDS_DOMAIN"
 	// use json to marshal it.
 	KitexXdsMetas = "KITEX_XDS_METAS"
-	IstiodSvrName = "istiod.istio-system.svc"
-	IstioVersion  = "ISTIO_VERSION"
+
+	IstioVersion           = "ISTIO_VERSION"
+	IstioAddrEnvKey        = "KITEX_XDS_ISTIO_ADDR"
+	IstioServiceNameEnvKey = "KITEX_XDS_ISTIO_SERVICE_NAME"
+	IstioAuthEnvKey        = "KITEX_XDS_ISTIO_AUTH"
 )
+
+var (
+	IstiodAddr      = "istiod.istio-system.svc:15010"
+	IstiodSvrName   = "istiod.istio-system.svc"
+	IstioAuthEnable = false
+)
+
+func init() {
+	istiodAddr := os.Getenv(IstioAddrEnvKey)
+	if istiodAddr != "" {
+		IstiodAddr = istiodAddr
+	}
+
+	istiodSvrName := os.Getenv(IstioServiceNameEnvKey)
+	if istiodSvrName != "" {
+		IstiodSvrName = istiodSvrName
+	}
+
+	istiodAuthEnable := os.Getenv(IstioAuthEnvKey)
+	if istiodAuthEnable == "true" {
+		IstioAuthEnable = true
+	}
+}
 
 type BootstrapConfig struct {
 	// The namespace to make up fqdn.
