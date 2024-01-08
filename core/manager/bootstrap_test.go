@@ -24,6 +24,60 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
+func TestTryExpandFQDN(t *testing.T) {
+	testCases := []struct {
+		desc string
+		host string
+		want string
+		bsc  *BootstrapConfig
+	}{
+		{
+			desc: "success",
+			host: "servicea",
+			want: "servicea.default.svc.cluster.local",
+			bsc: &BootstrapConfig{
+				nodeDomain:      "cluster.local",
+				configNamespace: "default",
+			},
+		},
+		{
+			desc: "success",
+			host: "servicea.bookinfo",
+			want: "servicea.bookinfo.svc.cluster.local",
+			bsc: &BootstrapConfig{
+				nodeDomain:      "cluster.local",
+				configNamespace: "default",
+			},
+		},
+		{
+			desc: "fqdn",
+			host: "servicea.bookinfo.svc.cluster.local",
+			want: "servicea.bookinfo.svc.cluster.local",
+			bsc: &BootstrapConfig{
+				nodeDomain:      "cluster.local",
+				configNamespace: "default",
+			},
+		},
+		{
+			desc: "error",
+			host: "servicea.bookinfo.svc",
+			want: "servicea.bookinfo.svc.cluster.local",
+			bsc: &BootstrapConfig{
+				nodeDomain:      "cluster.local",
+				configNamespace: "default",
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			got := tc.bsc.tryExpandFQDN(tc.host)
+			if got != tc.want {
+				t.Errorf("tryExpandFQDN() got = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestParseMetaEnvs(t *testing.T) {
 	testCases := []struct {
 		desc         string
