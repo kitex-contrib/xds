@@ -20,6 +20,15 @@ import (
 	"github.com/kitex-contrib/xds/core/manager"
 )
 
+// WithXDSServer set the xDS server option.
+func WithXDSServer(opts ...manager.Option) manager.Option {
+	return manager.Option{
+		F: func(o *manager.Options) {
+			o.Apply(opts)
+		},
+	}
+}
+
 // WithXDSServerAddress specifies the address of the xDS server the manager will connect to.
 func WithXDSServerAddress(address string) manager.Option {
 	return manager.Option{
