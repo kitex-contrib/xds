@@ -8,7 +8,7 @@ This project adds xDS support for Kitex and enables Kitex to perform in Proxyles
 ## Feature
 
 * Service Discovery
-* Traffic Route: only support `exact` match for `header` and `method`
+* Traffic Route: supports `exact` `prefix` `regex` match for `header` and `method`
     * [HTTP route configuration](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/http/http_routing#arch-overview-http-routing): configure via [VirtualService](https://istio.io/latest/docs/reference/config/networking/virtual-service/).
       * Since Istio provides limited support for thrift protocol and most users are familiar with the config of VirtualService, we use a mapping from HTTP to Thrift in this configuration. 
     * [ThriftProxy](https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/network/thrift_proxy/v3/thrift_proxy.proto): configure via patching [EnvoyFilter](https://istio.io/latest/docs/reference/config/networking/envoy-filter/).
@@ -66,6 +66,9 @@ client.WithXDSSuite(xds.ClientSuite{
 
 ```
 <service-name>.<namespace>.svc.cluster.local:<service-port>
+<service-name>.<namespace>.svc:<service-port>
+<service-name>.<namespace>:<service-port>
+<service-name>:<service-port> // access the <service-name> in same namespace.
 ```
 
 #### Traffic route based on Tag Match
@@ -88,6 +91,41 @@ spec:
       - headers:
           stage:
             exact: "canary"
+      # support prefix match
+      - headers:
+          stage:
+            prefix: "can"
+      # support regex match
+      - headers:
+          stage:
+            regex: "[canary|prod]"
+    route:
+    - destination:
+        host: kitex-server
+        subset: v1
+      weight: 100
+    timeout: 0.5s
+```
+The example of prefix and regex match like this:
+```
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: kitex-server
+spec:
+  hosts:
+    - kitex-server
+  http:
+  - name: "route-based-on-tags"
+    match:
+      # support prefix match
+      - headers:
+          stage:
+            prefix: "can"
+      # support regex match
+      - headers:
+          stage:
+            regex: "[canary|prod]"
     route:
     - destination:
         host: kitex-server

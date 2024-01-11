@@ -8,7 +8,7 @@ Kitex 通过外部扩展 [kitex-contrib/xds](https://github.com/kitex-contrib/xd
 ## 已支持的功能
 
 * 服务发现
-* 服务路由：当前仅支持 `header` 与 `method` 的精确匹配。
+* 服务路由：当前仅支持 `header` 与 `method` 的匹配策略有精确匹配、前缀匹配、正则匹配。
     * [HTTP route configuration](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/http/http_routing#arch-overview-http-routing): 通过 [VirtualService](https://istio.io/latest/docs/reference/config/networking/virtual-service/) 进行配置
       * 由于 Istio 对 thrift 协议的支持有限，并且大多数用户都熟悉 VirtualService 的配置，所以我们在该配置建立 HTTP 到 Thrift 的映射，以定义路由策略。
     * [ThriftProxy](https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/network/thrift_proxy/v3/thrift_proxy.proto): 通过 [EnvoyFilter](https://istio.io/latest/docs/reference/config/networking/envoy-filter/) 进行配置。
@@ -66,6 +66,9 @@ client.WithXDSSuite(xds.ClientSuite{
 
 ```
 <service-name>.<namespace>.svc.cluster.local:<service-port>
+<service-name>.<namespace>.svc:<service-port>
+<service-name>.<namespace>:<service-port>
+<service-name>:<service-port> // 访问同命名空间的服务.
 ```
 
 #### 基于 tag 匹配的路由匹配
@@ -88,6 +91,33 @@ spec:
       - headers:
           stage:
             exact: "canary"
+    route:
+    - destination:
+        host: kitex-server
+        subset: v1
+      weight: 100
+    timeout: 0.5s
+```
+前缀匹配和正则匹配例子如下：
+```
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: kitex-server
+spec:
+  hosts:
+    - kitex-server
+  http:
+  - name: "route-based-on-tags"
+    match:
+      # support prefix match
+      - headers:
+          stage:
+            prefix: "can"
+      # support regex match
+      - headers:
+          stage:
+            regex: "[canary|prod]"
     route:
     - destination:
         host: kitex-server
