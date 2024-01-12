@@ -38,6 +38,9 @@ const (
 	clusterIDEnvKey = "ISTIO_META_CLUSTER_ID"
 
 	clusterIDMetadataKey = "clusterid" // Istiod retrieves clusterid and use it for auth of JWT.
+
+	// the env for customize jwt token path
+	KitexXdsTokenPath = "KITEX_XDS_SA_TOKEN_PATH"
 )
 
 var (
@@ -103,7 +106,10 @@ var jwtTokenValueFmt = func(jwtToken string) string {
 }
 
 func getJWTToken() (string, error) {
-	saToken := jwtTokenPath
+	saToken := os.Getenv(KitexXdsTokenPath)
+	if saToken == "" {
+		saToken = jwtTokenPath
+	}
 
 	token, err := os.ReadFile(saToken)
 	if err != nil {
