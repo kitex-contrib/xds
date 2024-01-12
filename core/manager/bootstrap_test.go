@@ -87,12 +87,75 @@ func TestParseMetaEnvs(t *testing.T) {
 	}{
 		{
 			desc:         "success",
+			envs:         `{"cluster": "c1", "domain": "d1", "ISTIO_VERSION": "1.16.5","INSTANCE_IPS": "1.2.3.4"}`,
+			istioVersion: "1.16.3",
+			want: &structpb.Struct{
+				Fields: map[string]*structpb.Value{
+					IstioVersion: {
+						Kind: &structpb.Value_StringValue{StringValue: "1.16.5"},
+					},
+					IstioMetaInstanceIPs: {
+						Kind: &structpb.Value_StringValue{StringValue: "1.2.3.4,localhost"},
+					},
+					"cluster": {
+						Kind: &structpb.Value_StringValue{StringValue: "c1"},
+					},
+					"domain": {
+						Kind: &structpb.Value_StringValue{StringValue: "d1"},
+					},
+				},
+			},
+		},
+		{
+			desc:         "success",
 			envs:         `{"cluster": "c1", "domain": "d1", "ISTIO_VERSION": "1.16.5"}`,
 			istioVersion: "1.16.3",
 			want: &structpb.Struct{
 				Fields: map[string]*structpb.Value{
 					IstioVersion: {
 						Kind: &structpb.Value_StringValue{StringValue: "1.16.5"},
+					},
+					"cluster": {
+						Kind: &structpb.Value_StringValue{StringValue: "c1"},
+					},
+					"domain": {
+						Kind: &structpb.Value_StringValue{StringValue: "d1"},
+					},
+				},
+			},
+		},
+		{
+			desc:         "success",
+			envs:         `{"cluster": "c1", "domain": "d1", "ISTIO_VERSION": "1.16.5","INSTANCE_IPS": ""}`,
+			istioVersion: "1.16.3",
+			want: &structpb.Struct{
+				Fields: map[string]*structpb.Value{
+					IstioVersion: {
+						Kind: &structpb.Value_StringValue{StringValue: "1.16.5"},
+					},
+					IstioMetaInstanceIPs: {
+						Kind: &structpb.Value_StringValue{StringValue: "localhost"},
+					},
+					"cluster": {
+						Kind: &structpb.Value_StringValue{StringValue: "c1"},
+					},
+					"domain": {
+						Kind: &structpb.Value_StringValue{StringValue: "d1"},
+					},
+				},
+			},
+		},
+		{
+			desc:         "success",
+			envs:         `{"cluster": "c1", "domain": "d1", "ISTIO_VERSION": "1.16.5","INSTANCE_IPS": "localhost"}`,
+			istioVersion: "1.16.3",
+			want: &structpb.Struct{
+				Fields: map[string]*structpb.Value{
+					IstioVersion: {
+						Kind: &structpb.Value_StringValue{StringValue: "1.16.5"},
+					},
+					IstioMetaInstanceIPs: {
+						Kind: &structpb.Value_StringValue{StringValue: "localhost"},
 					},
 					"cluster": {
 						Kind: &structpb.Value_StringValue{StringValue: "c1"},
@@ -130,7 +193,7 @@ func TestParseMetaEnvs(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			got := parseMetaEnvs(tc.envs, tc.istioVersion)
+			got := parseMetaEnvs(tc.envs, tc.istioVersion, "localhost")
 			if diff := cmp.Diff(got, tc.want, protocmp.Transform()); diff != "" {
 				t.Fatalf("the result %s is diff(-got,+want): %s", tc.desc, diff)
 			}

@@ -37,10 +37,11 @@ const (
 	// use json to marshal it.
 	KitexXdsMetas = "KITEX_XDS_METAS"
 
-	IstioVersion           = "ISTIO_VERSION"
 	IstioAddrEnvKey        = "KITEX_XDS_ISTIO_ADDR"
 	IstioServiceNameEnvKey = "KITEX_XDS_ISTIO_SERVICE_NAME"
 	IstioAuthEnvKey        = "KITEX_XDS_ISTIO_AUTH"
+	IstioVersion           = "ISTIO_VERSION"
+	IstioMetaInstanceIPs   = "INSTANCE_IPS"
 )
 
 var (
@@ -91,7 +92,7 @@ func (xsc XDSServerConfig) GetFetchXDSTimeout() time.Duration {
 	return xsc.FetchXDSTimeout
 }
 
-func parseMetaEnvs(envs, istioVersion string) *structpb.Struct {
+func parseMetaEnvs(envs, istioVersion, podIP string) *structpb.Struct {
 	defaultMeta := &structpb.Struct{
 		Fields: map[string]*structpb.Value{
 			IstioVersion: {
@@ -110,6 +111,17 @@ func parseMetaEnvs(envs, istioVersion string) *structpb.Struct {
 	if err != nil {
 		klog.Warnf("[Kitex] XDS meta info is invalid %s, error %v", envs, err)
 		return defaultMeta
+	}
+	if ips, ok := pbmeta.Fields[IstioMetaInstanceIPs]; ok {
+		existips := ips.GetStringValue()
+		if existips == "" {
+			existips = podIP
+		} else if !strings.Contains(existips, podIP) {
+			existips = existips + "," + podIP
+		}
+		pbmeta.Fields[IstioMetaInstanceIPs] = &structpb.Value{
+			Kind: &structpb.Value_StringValue{StringValue: existips},
+		}
 	}
 	return pbmeta
 }
@@ -186,7 +198,7 @@ func newBootstrapConfig(config *XDSServerConfig) (*BootstrapConfig, error) {
 		configNamespace: namespace,
 		node: &v3core.Node{
 			Id:       nodeId(podIP, podName, namespace, nodeDomain),
-			Metadata: parseMetaEnvs(os.Getenv(KitexXdsMetas), istioVersion),
+			Metadata: parseMetaEnvs(os.Getenv(KitexXdsMetas), istioVersion, podIP),
 		},
 		xdsSvrCfg: config,
 	}
