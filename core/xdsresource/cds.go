@@ -60,11 +60,17 @@ func (p ClusterLbPolicy) String() string {
 	return ""
 }
 
+type OutlierDetection struct {
+	FailurePercentageThreshold     uint32
+	FailurePercentageRequestVolume uint32
+}
+
 type ClusterResource struct {
-	DiscoveryType   ClusterDiscoveryType
-	LbPolicy        ClusterLbPolicy
-	EndpointName    string
-	InlineEndpoints *EndpointsResource
+	DiscoveryType    ClusterDiscoveryType
+	LbPolicy         ClusterLbPolicy
+	EndpointName     string
+	InlineEndpoints  *EndpointsResource
+	OutlierDetection *OutlierDetection
 }
 
 func (c *ClusterResource) MarshalJSON() ([]byte, error) {
@@ -98,6 +104,12 @@ func unmarshalCluster(r *any.Any) (string, *ClusterResource, error) {
 		DiscoveryType: convertDiscoveryType(c.GetType()),
 		LbPolicy:      convertLbPolicy(c.GetLbPolicy()),
 		EndpointName:  c.Name,
+	}
+	if c.OutlierDetection != nil {
+		ret.OutlierDetection = &OutlierDetection{
+			FailurePercentageRequestVolume: c.OutlierDetection.FailurePercentageRequestVolume.GetValue(),
+			FailurePercentageThreshold:     c.OutlierDetection.FailurePercentageThreshold.GetValue(),
+		}
 	}
 	if n := c.GetEdsClusterConfig().GetServiceName(); n != "" {
 		ret.EndpointName = n

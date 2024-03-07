@@ -20,6 +20,8 @@ import (
 	"context"
 	"sync"
 
+	"github.com/cloudwego/kitex/pkg/circuitbreak"
+
 	"github.com/kitex-contrib/xds/core/xdsresource"
 )
 
@@ -41,6 +43,7 @@ func (m *singletonManager) getManager() XDSResourceManager {
 // Get() returns error when the fetching fails or the resource is not found in the latest update.
 type XDSResourceManager interface {
 	Get(ctx context.Context, resourceType xdsresource.ResourceType, resourceName string) (interface{}, error)
+	RegisterCircuitBreaker(func(configs map[string]circuitbreak.CBConfig))
 }
 
 func XDSInited() bool {
