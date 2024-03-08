@@ -21,6 +21,7 @@ import (
 
 	v3listenerpb "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	v3routepb "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	ratelimitv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/local_ratelimit/v3"
 	v3httppb "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	v3thrift_proxy "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/thrift_proxy/v3"
 	"github.com/golang/protobuf/ptypes/any"
@@ -31,6 +32,7 @@ import (
 // Only includes NetworkFilters now
 type ListenerResource struct {
 	NetworkFilters []*NetworkFilter
+	MaxTokens      uint32
 }
 
 func (r *ListenerResource) ResourceType() ResourceType {
@@ -88,6 +90,8 @@ func UnmarshalLDS(rawResources []*any.Any) (map[string]*ListenerResource, error)
 				nfs = append(nfs, res...)
 			}
 		}
+
+		var maxTokens uint32
 		if fc := lis.DefaultFilterChain; fc != nil {
 			res, err := unmarshalFilterChain(fc)
 			if err != nil {
@@ -223,6 +227,27 @@ func unmarshallHTTPConnectionManager(rawResources *any.Any) (string, *RouteConfi
 			return "", nil, err
 		}
 		return httpConnMng.GetRouteConfig().GetName(), inlineRouteConfig, nil
+	}
+	if httpConnMng.StatPrefix == "InboundPassthroughClusterIpv4" {
+		for _, filter := range httpConnMng.HttpFilters {
+			switch filter.ConfigType.(type) {
+			case *v3httppb.HttpFilter_TypedConfig:
+				if filter.GetTypedConfig() == nil {
+					return "", nil, fmt.Errorf("no TypedConfig in the HttpFilter")
+				}
+				if filter.GetTypedConfig().TypeUrl == "type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit" {
+					lrl := &ratelimitv3.LocalRateLimit{}
+					if err := proto.Unmarshal(filter.GetTypedConfig().GetValue(), lrl); err != nil {
+						return "", nil, fmt.Errorf("unmarshal HttpConnectionManager failed: %s", err)
+					}
+					if lrl.TokenBucket != nil {
+						return lrl.TokenBucket.MaxTokens
+					}
+				}
+			}
+
+		}
+		return "InboundPassthroughClusterIpv4", nil, nil
 	}
 	return "", nil, nil
 }
