@@ -15,6 +15,9 @@ Kitex 通过外部扩展 [kitex-contrib/xds](https://github.com/kitex-contrib/xd
 * 超时配置:
     * HTTP route configuration 内包含的配置，同样通过 VirtualService 来配置。
 
+* 熔断:
+    * [Cluster](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/outlier_detection.proto) 内包含的配置，需要通过 EnvoyFilter 来配置，目前只支持错误率熔断。 
+
 ## 开启方式
 开启的步骤分为两个部分：1. xDS 模块的初始化和 2. Kitex Client/Server 的 Option 配置。
 
@@ -244,7 +247,7 @@ spec:
 ``` 
 
 ### 有限的服务治理功能
-当前版本仅支持客户端通过 xDS 进行服务发现、流量路由和超时配置。
+当前版本仅支持客户端通过 xDS 进行服务发现、流量路由、超时配置和熔断。
 
 xDS 所支持的其他服务治理功能，包括负载平衡、速率限制和重试等，将在未来补齐。
 

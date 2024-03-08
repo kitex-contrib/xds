@@ -16,6 +16,9 @@ This project adds xDS support for Kitex and enables Kitex to perform in Proxyles
 * Timeout Configuration:
     * Configuration inside HTTP route configuration: configure via VirtualService.
 
+* CircuitBreaking
+    * Configuration inside [Cluster](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/outlier_detection.proto) configuration: configure via EnvoyFilter.
+
 ## Usage
 There are two steps for enabling xDS for Kitex applications: 1. xDS module initialization and 2. Kitex Client/Server Option configuration.
 
@@ -255,7 +258,7 @@ spec:
 ``` 
 
 ### Limited support for Service Governance
-Current version only support Service Discovery, Traffic route and Timeout Configuration via xDS on the client-side. 
+Current version only support Service Discovery, Traffic route, Timeout Configuration via xDS on the client-side and circuit-breaking. 
 
 Other features supported via xDS, including Load Balancing, Rate Limit and Retry etc, will be added in the future.
 
