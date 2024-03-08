@@ -120,6 +120,8 @@ func (m *xdsResourceManager) getFromCache(rType xdsresource.ResourceType, rName 
 	return nil, false
 }
 
+// RegisterCircuitBreaker registers the circuit breaker handler to resourceManager. The config stores in ClusterType xDS resource,
+// If the config changed, manager will invoke the handler.
 func (m *xdsResourceManager) RegisterCircuitBreaker(handler xdsresource.UpdateCircuitbreakCallback) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
