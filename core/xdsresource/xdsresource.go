@@ -19,6 +19,8 @@ package xdsresource
 import (
 	"sync/atomic"
 	"time"
+
+	"github.com/cloudwego/kitex/pkg/circuitbreak"
 )
 
 type Resource interface{}
@@ -89,3 +91,6 @@ var ResourceTypeToName = map[ResourceType]string{
 	EndpointsType:   "ClusterLoadAssignment",
 	NameTableType:   "NameTable",
 }
+
+// UpdateCircuitbreakCallback is the callback function for circuit break policy when a resource is updated.
+type UpdateCircuitbreakCallback func(configs map[string]circuitbreak.CBConfig)

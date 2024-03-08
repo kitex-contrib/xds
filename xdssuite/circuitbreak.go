@@ -33,13 +33,13 @@ func (cb *circuitBreaker) updateAllCircuitConfigs(configs map[string]circuitbrea
 	if cb.cb == nil {
 		return
 	}
-	policies := make(map[string]struct{})
+	newPolicies := make(map[string]struct{})
 	for k, v := range configs {
 		cb.cb.UpdateServiceCBConfig(k, v)
-		policies[k] = struct{}{}
+		newPolicies[k] = struct{}{}
 	}
 
-	defer cb.lastPolicies.Store(policies)
+	defer cb.lastPolicies.Store(newPolicies)
 
 	val := cb.lastPolicies.Load()
 	if val == nil {
@@ -51,7 +51,7 @@ func (cb *circuitBreaker) updateAllCircuitConfigs(configs map[string]circuitbrea
 	}
 	// disable the old policies that are not in the new configs.
 	for k := range lastPolicies {
-		if _, ok := policies[k]; !ok {
+		if _, ok := newPolicies[k]; !ok {
 			cb.cb.UpdateServiceCBConfig(k, circuitbreak.CBConfig{
 				Enable: false,
 			})
@@ -79,6 +79,7 @@ func genServiceCBKey(ri rpcinfo.RPCInfo) string {
 	if ri == nil {
 		return ""
 	}
+	// the value of RouterClusterKey is stored in route process.
 	key, _ := ri.To().Tag(RouterClusterKey)
 	return key
 }

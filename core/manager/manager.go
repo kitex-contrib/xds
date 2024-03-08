@@ -31,8 +31,6 @@ import (
 	"github.com/kitex-contrib/xds/core/xdsresource"
 )
 
-type updateCircuitbreakCallback func(configs map[string]circuitbreak.CBConfig)
-
 // xdsResourceManager manages all the xds resources in the cache and export Get function for resource retrieve.
 // It uses client to fetch the resources from the control plane.
 // It cleans the expired resource periodically.
@@ -51,7 +49,7 @@ type xdsResourceManager struct {
 	// options
 	opts *Options
 
-	cbHandlers []updateCircuitbreakCallback
+	cbHandlers []xdsresource.UpdateCircuitbreakCallback
 }
 
 // notifier is used to notify the resource update along with error
@@ -122,7 +120,7 @@ func (m *xdsResourceManager) getFromCache(rType xdsresource.ResourceType, rName 
 	return nil, false
 }
 
-func (m *xdsResourceManager) RegisterCircuitBreaker(handler func(configs map[string]circuitbreak.CBConfig)) {
+func (m *xdsResourceManager) RegisterCircuitBreaker(handler xdsresource.UpdateCircuitbreakCallback) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -130,7 +128,7 @@ func (m *xdsResourceManager) RegisterCircuitBreaker(handler func(configs map[str
 
 	res, ok := m.cache[xdsresource.ClusterType]
 	if ok {
-		updateCircuitPolicy(res, []updateCircuitbreakCallback{handler})
+		updateCircuitPolicy(res, []xdsresource.UpdateCircuitbreakCallback{handler})
 	}
 }
 
@@ -265,7 +263,7 @@ func (m *xdsResourceManager) updateMeta(rType xdsresource.ResourceType, version 
 	}
 }
 
-func updateCircuitPolicy(res map[string]xdsresource.Resource, handlers []updateCircuitbreakCallback) {
+func updateCircuitPolicy(res map[string]xdsresource.Resource, handlers []xdsresource.UpdateCircuitbreakCallback) {
 	// update circuit break policy
 	policies := make(map[string]circuitbreak.CBConfig)
 	for key, resource := range res {
