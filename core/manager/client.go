@@ -24,6 +24,7 @@ import (
 	"sync"
 
 	"github.com/cenkalti/backoff/v4"
+	"go.uber.org/atomic"
 
 	"github.com/kitex-contrib/xds/core/api/kitex_gen/envoy/service/discovery/v3/aggregateddiscoveryservice"
 	"github.com/kitex-contrib/xds/core/manager/auth"
@@ -129,6 +130,9 @@ type xdsClient struct {
 
 	// channel for stop
 	closeCh chan struct{}
+	// indicates ready for listener
+	inboundInitRequestCh chan struct{}
+	closedInboundInitCh  atomic.Bool
 
 	mu sync.RWMutex
 }
@@ -136,17 +140,18 @@ type xdsClient struct {
 // newXdsClient constructs a new xdsClient, which is used to get xds resources from the xds server.
 func newXdsClient(bCfg *BootstrapConfig, ac ADSClient, updater *xdsResourceManager) (*xdsClient, error) {
 	cli := &xdsClient{
-		config:          bCfg,
-		adsClient:       ac,
-		connectBackoff:  backoff.NewExponentialBackOff(),
-		watchedResource: make(map[xdsresource.ResourceType]map[string]bool),
-		cipResolver:     newNdsResolver(),
-		versionMap:      make(map[xdsresource.ResourceType]string),
-		nonceMap:        make(map[xdsresource.ResourceType]string),
-		resourceUpdater: updater,
-		closeCh:         make(chan struct{}),
-		streamCh:        make(chan ADSStream, 1),
-		reqCh:           make(chan *discoveryv3.DiscoveryRequest, 1024),
+		config:               bCfg,
+		adsClient:            ac,
+		connectBackoff:       backoff.NewExponentialBackOff(),
+		watchedResource:      make(map[xdsresource.ResourceType]map[string]bool),
+		cipResolver:          newNdsResolver(),
+		versionMap:           make(map[xdsresource.ResourceType]string),
+		nonceMap:             make(map[xdsresource.ResourceType]string),
+		resourceUpdater:      updater,
+		closeCh:              make(chan struct{}),
+		inboundInitRequestCh: make(chan struct{}),
+		streamCh:             make(chan ADSStream, 1),
+		reqCh:                make(chan *discoveryv3.DiscoveryRequest, 1024),
 	}
 	cli.run()
 	return cli, nil
@@ -287,17 +292,34 @@ func (c *xdsClient) ndsRequired() bool {
 	return !c.config.xdsSvrCfg.NDSNotRequired
 }
 
+// ldsRequired returns if lds is required startup.
+func (c *xdsClient) ldsRequired() bool {
+	return !c.config.xdsSvrCfg.LDSNotRequired
+}
+
 // ndsWarmup sends the requests (NDS) to the xds server and waits for the response to set the lookup table.
 func (c *xdsClient) ndsWarmup() {
 	// watch the NameTable when init the xds client
 	c.Watch(xdsresource.NameTableType, "", false)
 	<-c.cipResolver.initRequestCh
+	klog.Infof("KITEX: [XDS] nds, warmup done")
+}
+
+func (c *xdsClient) listenerWarmup() {
+	// watch the NameTable when init the xds client
+	c.Watch(xdsresource.ListenerType, reservedLdsResourceName, false)
+	<-c.inboundInitRequestCh
+	klog.Infof("KITEX: [XDS] lds, warmup done")
 }
 
 // warmup sends the requests (NDS) to the xds server and waits for the response to set the lookup table.
 func (c *xdsClient) warmup() {
 	if c.ndsRequired() {
 		c.ndsWarmup()
+	}
+
+	if c.ldsRequired() {
+		c.listenerWarmup()
 	}
 	// TODO: maybe need to watch the listener
 	klog.Infof("KITEX: [XDS] client, warmup done")
@@ -436,7 +458,7 @@ func (c *xdsClient) handleLDS(resp *discoveryv3.DiscoveryResponse) error {
 	c.mu.RLock()
 	filteredRes := make(map[string]xdsresource.Resource)
 	for n := range c.watchedResource[xdsresource.ListenerType] {
-		if c.ndsRequired() {
+		if c.ndsRequired() && n != reservedLdsResourceName {
 			ln, err := c.getListenerName(n)
 			if err != nil || ln == "" {
 				klog.Warnf("KITEX: [XDS] get listener name %s failed, err: %v", n, err)
@@ -452,6 +474,11 @@ func (c *xdsClient) handleLDS(resp *discoveryv3.DiscoveryResponse) error {
 	c.mu.RUnlock()
 	// update to cache
 	c.resourceUpdater.UpdateResource(xdsresource.ListenerType, filteredRes, resp.GetVersionInfo())
+
+	if c.closedInboundInitCh.CompareAndSwap(false, true) {
+		klog.Info("[xds] receive inbound init request")
+		close(c.inboundInitRequestCh)
+	}
 	return nil
 }
 

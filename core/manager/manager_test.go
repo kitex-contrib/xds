@@ -18,11 +18,16 @@ package manager
 
 import (
 	"context"
+	"math"
 	"sync"
 	"testing"
 	"time"
 
+<<<<<<< HEAD
 	"github.com/cloudwego/kitex/pkg/circuitbreak"
+=======
+	"github.com/cloudwego/kitex/pkg/limit"
+>>>>>>> 9b1da12 (feat(limit): support limit config)
 	"github.com/stretchr/testify/assert"
 
 	"github.com/kitex-contrib/xds/core/manager/mock"
@@ -165,7 +170,7 @@ func Test_xdsResourceManager_Get(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := m.Get(tt.args.ctx, tt.args.resourceType, tt.args.resourceName)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Get() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("[%s] Get() error = %v, wantErr %v", tt.name, err, tt.wantErr)
 				return
 			}
 		})
@@ -309,55 +314,124 @@ func Test_xdsResourceManager_ConcurrentGet(t *testing.T) {
 	}
 	wg.Wait()
 }
-
-func TestRegisterCircuitBreaker(t *testing.T) {
+func TestRegisterLimiter(t *testing.T) {
 	m := &xdsResourceManager{
 		cache: map[xdsresource.ResourceType]map[string]xdsresource.Resource{
-			xdsresource.ClusterType: {
-				xdsresource.ClusterName1: &xdsresource.ClusterResource{
-					OutlierDetection: &xdsresource.OutlierDetection{
-						FailurePercentageThreshold:     10,
-						FailurePercentageRequestVolume: 1001,
-					},
-				},
-				xdsresource.ClusterName2: &xdsresource.ClusterResource{
-					OutlierDetection: &xdsresource.OutlierDetection{
-						FailurePercentageThreshold:     10,
-						FailurePercentageRequestVolume: 0,
+			xdsresource.ListenerType: {
+				reservedLdsResourceName: &xdsresource.ListenerResource{
+					NetworkFilters: []*xdsresource.NetworkFilter{
+						{
+							RoutePort: 80,
+							InlineRouteConfig: &xdsresource.RouteConfigResource{
+								MaxTokens: 100,
+							},
+						},
+						{
+							RoutePort: 0,
+							InlineRouteConfig: &xdsresource.RouteConfigResource{
+								MaxTokens: 1000,
+							},
+						},
 					},
 				},
 			},
 		},
-		meta: map[xdsresource.ResourceType]map[string]*xdsresource.ResourceMeta{},
+		meta:            map[xdsresource.ResourceType]map[string]*xdsresource.ResourceMeta{},
+		limiterHandlers: map[uint32]xdsresource.UpdateLimiterCallback{},
 	}
 
-	policies := make(map[string]circuitbreak.CBConfig)
-	updater := func(configs map[string]circuitbreak.CBConfig) {
-		policies = configs
+	policies := make(map[int]*limit.Option)
+	updater1 := func(opt *limit.Option) {
+		policies[80] = opt
 	}
-	m.RegisterCircuitBreaker(updater)
-	assert.Equal(t, policies, map[string]circuitbreak.CBConfig{
-		"cluster1": {
-			Enable:    true,
-			ErrRate:   0.1,
-			MinSample: 1001,
+	updater2 := func(opt *limit.Option) {
+		policies[8080] = opt
+	}
+	m.RegisterLimiter(80, updater1)
+	m.RegisterLimiter(8080, updater2)
+	assert.Equal(t, policies, map[int]*limit.Option{
+		80: {
+			MaxConnections: math.MaxInt,
+			MaxQPS:         100,
 		},
-		"cluster2": {},
+		8080: {
+			MaxConnections: math.MaxInt,
+			MaxQPS:         1000,
+		},
 	})
 
-	m.UpdateResource(xdsresource.ClusterType, map[string]xdsresource.Resource{
-		xdsresource.ClusterName1: &xdsresource.ClusterResource{
-			OutlierDetection: &xdsresource.OutlierDetection{
-				FailurePercentageThreshold:     1,
-				FailurePercentageRequestVolume: 100,
+	m.UpdateResource(xdsresource.ListenerType, map[string]xdsresource.Resource{
+		reservedLdsResourceName: &xdsresource.ListenerResource{},
+	}, "latest")
+
+	assert.Equal(t, policies, map[int]*limit.Option{
+		80: {
+			MaxConnections: math.MaxInt,
+			MaxQPS:         math.MaxInt,
+		},
+		8080: {
+			MaxConnections: math.MaxInt,
+			MaxQPS:         math.MaxInt,
+		},
+	})
+
+	m.UpdateResource(xdsresource.ListenerType, map[string]xdsresource.Resource{
+		reservedLdsResourceName: &xdsresource.ListenerResource{
+			NetworkFilters: []*xdsresource.NetworkFilter{
+				{
+					RoutePort: 1001,
+					InlineRouteConfig: &xdsresource.RouteConfigResource{
+						MaxTokens: 100,
+					},
+				},
+				{
+					RoutePort: 8080,
+					InlineRouteConfig: &xdsresource.RouteConfigResource{
+						MaxTokens: 1000,
+					},
+				},
 			},
 		},
 	}, "latest")
-	assert.Equal(t, policies, map[string]circuitbreak.CBConfig{
-		"cluster1": {
-			Enable:    true,
-			ErrRate:   0.01,
-			MinSample: 100,
+
+	assert.Equal(t, policies, map[int]*limit.Option{
+		80: {
+			MaxConnections: math.MaxInt,
+			MaxQPS:         math.MaxInt,
+		},
+		8080: {
+			MaxConnections: math.MaxInt,
+			MaxQPS:         1000,
+		},
+	})
+
+	m.UpdateResource(xdsresource.ListenerType, map[string]xdsresource.Resource{
+		"l1": &xdsresource.ListenerResource{
+			NetworkFilters: []*xdsresource.NetworkFilter{
+				{
+					RoutePort: 1001,
+					InlineRouteConfig: &xdsresource.RouteConfigResource{
+						MaxTokens: 100,
+					},
+				},
+				{
+					RoutePort: 8080,
+					InlineRouteConfig: &xdsresource.RouteConfigResource{
+						MaxTokens: 1000,
+					},
+				},
+			},
+		},
+	}, "latest")
+
+	assert.Equal(t, policies, map[int]*limit.Option{
+		80: {
+			MaxConnections: math.MaxInt,
+			MaxQPS:         math.MaxInt,
+		},
+		8080: {
+			MaxConnections: math.MaxInt,
+			MaxQPS:         math.MaxInt,
 		},
 	})
 }

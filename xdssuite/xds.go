@@ -43,6 +43,8 @@ type XDSResourceManager interface {
 	Get(ctx context.Context, resourceType xdsresource.ResourceType, resourceName string) (interface{}, error)
 	// RegisterCircuitBreaker registers the callback function for circuit breaker
 	RegisterCircuitBreaker(xdsresource.UpdateCircuitbreakCallback)
+	// RegisterLimiter registers the callback function for limiter
+	RegisterLimiter(port uint32, handler xdsresource.UpdateLimiterCallback)
 }
 
 func XDSInited() bool {

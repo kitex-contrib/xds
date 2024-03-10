@@ -9,6 +9,7 @@ require (
 	github.com/envoyproxy/go-control-plane v0.11.1
 	github.com/golang/protobuf v1.5.3
 	github.com/stretchr/testify v1.8.3
+	go.uber.org/atomic v1.11.0
 	google.golang.org/protobuf v1.30.0
 )
 

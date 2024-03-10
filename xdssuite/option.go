@@ -29,6 +29,7 @@ type routerMetaExtractor func(context.Context) map[string]string
 // Options for xds suite
 type Options struct {
 	routerMetaExtractor routerMetaExtractor // use metainfo.GetAllValues by default.
+	servicePort         uint32
 }
 
 func (o *Options) Apply(opts []Option) {

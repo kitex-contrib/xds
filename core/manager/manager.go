@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -27,8 +28,18 @@ import (
 
 	"github.com/cloudwego/kitex/pkg/circuitbreak"
 	"github.com/cloudwego/kitex/pkg/klog"
+	"github.com/cloudwego/kitex/pkg/limit"
 
 	"github.com/kitex-contrib/xds/core/xdsresource"
+)
+
+const (
+	// reservedLdsResourceName the virtualInbound is used for server side configuration, should
+	// initialize it in the first and reserved for the all lifecycle.
+	reservedLdsResourceName = "virtualInbound"
+
+	// defaultServerPort if not set port for the server, it will use this.
+	defaultServerPort = 0
 )
 
 // xdsResourceManager manages all the xds resources in the cache and export Get function for resource retrieve.
@@ -50,6 +61,8 @@ type xdsResourceManager struct {
 	opts *Options
 
 	cbHandlers []xdsresource.UpdateCircuitbreakCallback
+	// one server may has multiple listed port, each port should has individual limiter policy
+	limiterHandlers map[uint32]xdsresource.UpdateLimiterCallback
 }
 
 // notifier is used to notify the resource update along with error
@@ -68,12 +81,13 @@ func NewXDSResourceManager(bootstrapConfig *BootstrapConfig, opts ...Option) (*x
 	// load bootstrap config
 	var err error
 	m := &xdsResourceManager{
-		cache:       map[xdsresource.ResourceType]map[string]xdsresource.Resource{},
-		meta:        make(map[xdsresource.ResourceType]map[string]*xdsresource.ResourceMeta),
-		notifierMap: make(map[xdsresource.ResourceType]map[string]*notifier),
-		mu:          sync.RWMutex{},
-		opts:        NewOptions(opts),
-		closeCh:     make(chan struct{}),
+		cache:           map[xdsresource.ResourceType]map[string]xdsresource.Resource{},
+		meta:            make(map[xdsresource.ResourceType]map[string]*xdsresource.ResourceMeta),
+		notifierMap:     make(map[xdsresource.ResourceType]map[string]*notifier),
+		mu:              sync.RWMutex{},
+		opts:            NewOptions(opts),
+		closeCh:         make(chan struct{}),
+		limiterHandlers: make(map[uint32]xdsresource.UpdateLimiterCallback),
 	}
 	// Initial xds client
 	if bootstrapConfig == nil {
@@ -132,6 +146,18 @@ func (m *xdsResourceManager) RegisterCircuitBreaker(handler xdsresource.UpdateCi
 	if ok {
 		updateCircuitPolicy(res, []xdsresource.UpdateCircuitbreakCallback{handler})
 	}
+}
+
+// RegisterLimiter registers the limiter handler to resourceManager. The config stores in ListenerType xDS resource,
+// If the config changed, manager will invoke the handler. Every port has individual limiter policy, it will use
+// default limiter pilocy if not set port,
+// MUST NOT register the duplicated port as the new one will override the old one.
+func (m *xdsResourceManager) RegisterLimiter(port uint32, handler xdsresource.UpdateLimiterCallback) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.limiterHandlers[port] = handler
+
+	m.updateLimit(m.cache[xdsresource.ListenerType])
 }
 
 // Get gets the specified resource from cache or from the control plane.
@@ -200,7 +226,8 @@ func (m *xdsResourceManager) cleaner() {
 					if !ok {
 						continue
 					}
-					if time.Since(t) > defaultCacheExpireTime {
+					// should not delete the reserved resource
+					if time.Since(t) > defaultCacheExpireTime && !isReservedResource(rt, rName) {
 						delete(m.meta[rt], rName)
 						if m.cache[rt] != nil {
 							delete(m.cache[rt], rName)
@@ -289,6 +316,56 @@ func updateCircuitPolicy(res map[string]xdsresource.Resource, handlers []xdsreso
 	}
 }
 
+// the routeConfigName
+func setLimitOption(token uint32) *limit.Option {
+	maxQPS := int(token)
+	// if the token is zero, set the value to Max to disable the limiter
+	if 0 == maxQPS {
+		maxQPS = math.MaxInt
+	}
+	return &limit.Option{
+		MaxQPS: maxQPS,
+		// TODO: there is no conresponse config in xDS, disable it default.
+		MaxConnections: math.MaxInt,
+	}
+}
+
+func getLimiterPolicy(up map[string]xdsresource.Resource) map[uint32]uint32 {
+	val, ok := up[reservedLdsResourceName]
+	if !ok {
+		return nil
+	}
+	lds, ok := val.(*xdsresource.ListenerResource)
+	if !ok {
+		return nil
+	}
+	if lds == nil {
+		return nil
+	}
+	maxTokens := make(map[uint32]uint32)
+	for _, lis := range lds.NetworkFilters {
+		if lis.InlineRouteConfig != nil {
+			maxTokens[lis.RoutePort] = lis.InlineRouteConfig.MaxTokens
+		}
+	}
+	return maxTokens
+}
+
+func (m *xdsResourceManager) updateLimit(up map[string]xdsresource.Resource) {
+	tokens := getLimiterPolicy(up)
+	klog.Debugf("[xds]getLimiterPolicy info: %v", tokens)
+	for port, handler := range m.limiterHandlers {
+		if mt, ok := tokens[port]; ok {
+			handler(setLimitOption(mt))
+		} else if mt, ok := tokens[defaultServerPort]; ok {
+			// if not find the port, use the default server port
+			handler(setLimitOption(mt))
+		} else {
+			handler(setLimitOption(0))
+		}
+	}
+}
+
 // UpdateResource is invoked by client to update the cache
 func (m *xdsResourceManager) UpdateResource(rt xdsresource.ResourceType, up map[string]xdsresource.Resource, version string) {
 	m.mu.Lock()
@@ -298,6 +375,9 @@ func (m *xdsResourceManager) UpdateResource(rt xdsresource.ResourceType, up map[
 	// circuit break policy is updated at the first time.
 	if rt == xdsresource.ClusterType {
 		updateCircuitPolicy(up, m.cbHandlers)
+	}
+	if rt == xdsresource.ListenerType {
+		m.updateLimit(up)
 	}
 
 	for name, res := range up {
@@ -324,4 +404,8 @@ func (m *xdsResourceManager) UpdateResource(rt xdsresource.ResourceType, up map[
 	}
 	// update meta
 	m.updateMeta(rt, version)
+}
+
+func isReservedResource(resourceType xdsresource.ResourceType, resourceName string) bool {
+	return resourceType == xdsresource.ListenerType && resourceName == reservedLdsResourceName
 }

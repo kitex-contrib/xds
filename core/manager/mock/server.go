@@ -28,6 +28,7 @@ import (
 
 	discoveryv3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 
+	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/cloudwego/kitex/server"
 )
 
@@ -50,7 +51,7 @@ func StartXDSServer(address string) *testXDSServer {
 			respCh: respCh,
 			resourceCache: map[xdsresource.ResourceType]map[string]*discoveryv3.DiscoveryResponse{
 				xdsresource.ListenerType: {
-					"":                   LdsResp1,
+					"":                   LdsInbound,
 					LdsResp1.VersionInfo: LdsResp1,
 					LdsResp2.VersionInfo: LdsResp2,
 					LdsResp3.VersionInfo: LdsResp3,
@@ -121,14 +122,12 @@ func (svr *testAdsService) StreamAggregatedResources(stream v3.AggregatedDiscove
 			select {
 			case <-stopCh:
 				return
-			default:
-			}
-
-			resp := <-svr.respCh
-			err := stream.Send(resp)
-			if err != nil {
-				errCh <- err
-				return
+			case resp := <-svr.respCh:
+				err := stream.Send(resp)
+				if err != nil {
+					errCh <- err
+					return
+				}
 			}
 		}
 	}()
@@ -150,9 +149,17 @@ func (svr *testAdsService) handleRequest(msg interface{}) {
 	if _, ok := svr.resourceCache[rType]; !ok {
 		return
 	}
+
+	klog.Infof("resc type %v version [%v]", rType, req.VersionInfo)
 	cache, ok := svr.resourceCache[rType][req.VersionInfo]
 	// ignore ack
 	if !ok || req.ResponseNonce == cache.Nonce {
+		klog.Infof("resourceCache info.. %v", svr.resourceCache[rType][req.VersionInfo])
+		if cache == nil {
+			klog.Infof("res nonce %s ", req.ResponseNonce)
+		} else {
+			klog.Infof("cache nonce [%s] res nonce %s ", cache.Nonce, req.ResponseNonce)
+		}
 		return
 	}
 	svr.respCh <- cache

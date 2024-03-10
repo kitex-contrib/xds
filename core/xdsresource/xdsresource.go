@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/cloudwego/kitex/pkg/circuitbreak"
+	"github.com/cloudwego/kitex/pkg/limit"
 )
 
 type Resource interface{}
@@ -94,3 +95,6 @@ var ResourceTypeToName = map[ResourceType]string{
 
 // UpdateCircuitbreakCallback is the callback function for circuit break policy when a resource is updated.
 type UpdateCircuitbreakCallback func(configs map[string]circuitbreak.CBConfig)
+
+// UpdateLimiterCallback is the callback function for limiter policy when a resource is updated.
+type UpdateLimiterCallback func(*limit.Option)

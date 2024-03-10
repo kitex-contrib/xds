@@ -81,6 +81,7 @@ type XDSServerConfig struct {
 	SvrAddr         string        // The address of the xDS server
 	XDSAuth         bool          // If this xDS enable the authentication of xDS stream
 	NDSNotRequired  bool          // required by default for Istio
+	LDSNotRequired  bool          // required by default for Istio
 	FetchXDSTimeout time.Duration // timeout for fecth xds, default to 1s
 }
 
