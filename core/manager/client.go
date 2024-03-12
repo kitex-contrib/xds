@@ -306,7 +306,7 @@ func (c *xdsClient) ndsWarmup() {
 }
 
 func (c *xdsClient) listenerWarmup() {
-	// watch the NameTable when init the xds client
+	// watch the Listener when init the xds client, it is used for inbound side.
 	c.Watch(xdsresource.ListenerType, reservedLdsResourceName, false)
 	<-c.inboundInitRequestCh
 	klog.Infof("KITEX: [XDS] lds, warmup done")
@@ -476,7 +476,7 @@ func (c *xdsClient) handleLDS(resp *discoveryv3.DiscoveryResponse) error {
 	c.resourceUpdater.UpdateResource(xdsresource.ListenerType, filteredRes, resp.GetVersionInfo())
 
 	if c.closedInboundInitCh.CompareAndSwap(false, true) {
-		klog.Info("[xds] receive inbound init request")
+		klog.Info("KITEX: [xds] receive inbound init request")
 		close(c.inboundInitRequestCh)
 	}
 	return nil

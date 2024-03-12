@@ -227,7 +227,7 @@ func (m *xdsResourceManager) cleaner() {
 						continue
 					}
 					// should not delete the reserved resource
-					if time.Since(t) > defaultCacheExpireTime && !isReservedResource(rt, rName) {
+					if !isReservedResource(rt, rName) && time.Since(t) > defaultCacheExpireTime {
 						delete(m.meta[rt], rName)
 						if m.cache[rt] != nil {
 							delete(m.cache[rt], rName)

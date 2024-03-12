@@ -23,11 +23,8 @@ import (
 	"testing"
 	"time"
 
-<<<<<<< HEAD
 	"github.com/cloudwego/kitex/pkg/circuitbreak"
-=======
 	"github.com/cloudwego/kitex/pkg/limit"
->>>>>>> 9b1da12 (feat(limit): support limit config)
 	"github.com/stretchr/testify/assert"
 
 	"github.com/kitex-contrib/xds/core/manager/mock"
@@ -432,6 +429,58 @@ func TestRegisterLimiter(t *testing.T) {
 		8080: {
 			MaxConnections: math.MaxInt,
 			MaxQPS:         math.MaxInt,
+		},
+	})
+}
+
+func TestRegisterCircuitBreaker(t *testing.T) {
+	m := &xdsResourceManager{
+		cache: map[xdsresource.ResourceType]map[string]xdsresource.Resource{
+			xdsresource.ClusterType: {
+				xdsresource.ClusterName1: &xdsresource.ClusterResource{
+					OutlierDetection: &xdsresource.OutlierDetection{
+						FailurePercentageThreshold:     10,
+						FailurePercentageRequestVolume: 1001,
+					},
+				},
+				xdsresource.ClusterName2: &xdsresource.ClusterResource{
+					OutlierDetection: &xdsresource.OutlierDetection{
+						FailurePercentageThreshold:     10,
+						FailurePercentageRequestVolume: 0,
+					},
+				},
+			},
+		},
+		meta: map[xdsresource.ResourceType]map[string]*xdsresource.ResourceMeta{},
+	}
+
+	policies := make(map[string]circuitbreak.CBConfig)
+	updater := func(configs map[string]circuitbreak.CBConfig) {
+		policies = configs
+	}
+	m.RegisterCircuitBreaker(updater)
+	assert.Equal(t, policies, map[string]circuitbreak.CBConfig{
+		"cluster1": {
+			Enable:    true,
+			ErrRate:   0.1,
+			MinSample: 1001,
+		},
+		"cluster2": {},
+	})
+
+	m.UpdateResource(xdsresource.ClusterType, map[string]xdsresource.Resource{
+		xdsresource.ClusterName1: &xdsresource.ClusterResource{
+			OutlierDetection: &xdsresource.OutlierDetection{
+				FailurePercentageThreshold:     1,
+				FailurePercentageRequestVolume: 100,
+			},
+		},
+	}, "latest")
+	assert.Equal(t, policies, map[string]circuitbreak.CBConfig{
+		"cluster1": {
+			Enable:    true,
+			ErrRate:   0.01,
+			MinSample: 100,
 		},
 	})
 }
