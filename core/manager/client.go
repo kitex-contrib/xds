@@ -307,7 +307,7 @@ func (c *xdsClient) ndsWarmup() {
 
 func (c *xdsClient) listenerWarmup() {
 	// watch the Listener when init the xds client, it is used for inbound side.
-	c.Watch(xdsresource.ListenerType, reservedLdsResourceName, false)
+	c.Watch(xdsresource.ListenerType, xdsresource.ReservedLdsResourceName, false)
 	<-c.inboundInitRequestCh
 	klog.Infof("KITEX: [XDS] lds, warmup done")
 }
@@ -458,7 +458,7 @@ func (c *xdsClient) handleLDS(resp *discoveryv3.DiscoveryResponse) error {
 	c.mu.RLock()
 	filteredRes := make(map[string]xdsresource.Resource)
 	for n := range c.watchedResource[xdsresource.ListenerType] {
-		if c.ndsRequired() && n != reservedLdsResourceName {
+		if c.ndsRequired() && n != xdsresource.ReservedLdsResourceName {
 			ln, err := c.getListenerName(n)
 			if err != nil || ln == "" {
 				klog.Warnf("KITEX: [XDS] get listener name %s failed, err: %v", n, err)

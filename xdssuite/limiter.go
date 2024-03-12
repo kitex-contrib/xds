@@ -17,44 +17,109 @@
 package xdssuite
 
 import (
+	"math"
 	"sync/atomic"
 
 	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/cloudwego/kitex/pkg/limit"
 	"github.com/cloudwego/kitex/server"
+
+	"github.com/kitex-contrib/xds/core/xdsresource"
 )
+
+func setLimitOption(token uint32) *limit.Option {
+	maxQPS := int(token)
+	// if the token is zero, set the value to Max to disable the limiter
+	if 0 == maxQPS {
+		maxQPS = math.MaxInt
+	}
+	return &limit.Option{
+		MaxQPS: maxQPS,
+		// TODO: there is no conresponse config in xDS, disable it default.
+		MaxConnections: math.MaxInt,
+	}
+}
+
+func getLimiterPolicy(up map[string]xdsresource.Resource) map[uint32]uint32 {
+	val, ok := up[xdsresource.ReservedLdsResourceName]
+	if !ok {
+		return nil
+	}
+	lds, ok := val.(*xdsresource.ListenerResource)
+	if !ok {
+		return nil
+	}
+	if lds == nil {
+		return nil
+	}
+	maxTokens := make(map[uint32]uint32)
+	for _, lis := range lds.NetworkFilters {
+		if lis.InlineRouteConfig != nil {
+			maxTokens[lis.RoutePort] = lis.InlineRouteConfig.MaxTokens
+		}
+	}
+	return maxTokens
+}
+
+type limiter struct {
+	updater atomic.Value
+	opt     *limit.Option
+	port    uint32
+}
+
+func (l *limiter) updateHandler(changed *limit.Option) {
+	if changed == nil {
+		return
+	}
+	l.opt.MaxConnections = changed.MaxConnections
+	l.opt.MaxQPS = changed.MaxQPS
+	u := l.updater.Load()
+	if u == nil {
+		klog.Warnf("[xds] server limiter config failed as the updater is empty")
+		return
+	}
+	up, ok := u.(limit.Updater)
+	if !ok {
+		return
+	}
+	if !up.UpdateLimit(l.opt) {
+		klog.Warnf("[xds] server limiter config: data %s may do not take affect", changed)
+	}
+}
+
+func (l *limiter) listenerUpdater(res map[string]xdsresource.Resource) {
+	tokens := getLimiterPolicy(res)
+	klog.Debugf("[xds]getLimiterPolicy info: %v", tokens)
+	var opt *limit.Option
+	if mt, ok := tokens[l.port]; ok {
+		opt = setLimitOption(mt)
+	} else if mt, ok := tokens[xdsresource.DefaultServerPort]; ok {
+		// if not find the port, use the default server port
+		opt = setLimitOption(mt)
+	} else {
+		opt = setLimitOption(mt)
+	}
+	l.updateHandler(opt)
+}
 
 // NewLimiter creates a server limiter
 func NewLimiter(opts ...Option) server.Option {
 	serverOpt := NewOptions(opts)
-	var updater atomic.Value
-	opt := &limit.Option{}
-	opt.UpdateControl = func(u limit.Updater) {
-		u.UpdateLimit(opt)
-		updater.Store(u)
-	}
 	m := xdsResourceManager.getManager()
 	if m == nil {
 		panic("xds resource manager has not been initialized")
 	}
-	m.RegisterLimiter(serverOpt.servicePort, func(chanegd *limit.Option) {
-		if chanegd == nil {
-			return
-		}
-		opt.MaxConnections = chanegd.MaxConnections
-		opt.MaxQPS = chanegd.MaxQPS
-		u := updater.Load()
-		if u == nil {
-			klog.Warnf("[xds] server limiter config failed as the updater is empty")
-			return
-		}
-		up, ok := u.(limit.Updater)
-		if !ok {
-			return
-		}
-		if !up.UpdateLimit(opt) {
-			klog.Warnf("[xds] server limiter config: data %s may do not take affect", chanegd)
-		}
-	})
-	return server.WithLimit(opt)
+
+	l := &limiter{
+		opt:  &limit.Option{},
+		port: serverOpt.servicePort,
+	}
+
+	l.opt.UpdateControl = func(u limit.Updater) {
+		u.UpdateLimit(l.opt)
+		l.updater.Store(u)
+	}
+
+	m.RegisterXDSUpdateHandler(xdsresource.ListenerType, l.listenerUpdater)
+	return server.WithLimit(l.opt)
 }

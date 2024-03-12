@@ -23,14 +23,13 @@ import (
 
 	"github.com/cloudwego/kitex/pkg/endpoint"
 	"github.com/cloudwego/kitex/pkg/kerrors"
+	"github.com/cloudwego/kitex/pkg/rpcinfo"
 	"github.com/cloudwego/kitex/pkg/rpcinfo/remoteinfo"
+	"github.com/cloudwego/kitex/transport"
 
 	"github.com/bytedance/gopkg/lang/fastrand"
 
 	"github.com/kitex-contrib/xds/core/xdsresource"
-
-	"github.com/cloudwego/kitex/pkg/rpcinfo"
-	"github.com/cloudwego/kitex/transport"
 )
 
 const (

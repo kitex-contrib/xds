@@ -39,12 +39,12 @@ import (
 
 var (
 	mockUpdater = &xdsResourceManager{
-		cache:           map[xdsresource.ResourceType]map[string]xdsresource.Resource{},
-		meta:            make(map[xdsresource.ResourceType]map[string]*xdsresource.ResourceMeta),
-		notifierMap:     make(map[xdsresource.ResourceType]map[string]*notifier),
-		mu:              sync.RWMutex{},
-		opts:            NewOptions(nil),
-		limiterHandlers: make(map[uint32]xdsresource.UpdateLimiterCallback),
+		cache:       map[xdsresource.ResourceType]map[string]xdsresource.Resource{},
+		meta:        make(map[xdsresource.ResourceType]map[string]*xdsresource.ResourceMeta),
+		notifierMap: make(map[xdsresource.ResourceType]map[string]*notifier),
+		mu:          sync.RWMutex{},
+		opts:        NewOptions(nil),
+		xdsHandlers: map[xdsresource.ResourceType][]xdsresource.XDSUpdateHandler{},
 	}
 	mockBootstrapConfig = &BootstrapConfig{
 		node:      NodeProto,

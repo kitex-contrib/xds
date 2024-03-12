@@ -19,9 +19,6 @@ package xdsresource
 import (
 	"sync/atomic"
 	"time"
-
-	"github.com/cloudwego/kitex/pkg/circuitbreak"
-	"github.com/cloudwego/kitex/pkg/limit"
 )
 
 type Resource interface{}
@@ -32,6 +29,15 @@ type ResourceMeta struct {
 	UpdateTime     time.Time
 	LastAccessTime atomic.Value
 }
+
+const (
+	// ReservedLdsResourceName the virtualInbound is used for server side configuration, should
+	// initialize it in the first and reserved for the all lifecycle.
+	ReservedLdsResourceName = "virtualInbound"
+
+	// DefaultServerPort if not set port for the server, it will use this.
+	DefaultServerPort = 0
+)
 
 type ResourceType int
 
@@ -93,8 +99,5 @@ var ResourceTypeToName = map[ResourceType]string{
 	NameTableType:   "NameTable",
 }
 
-// UpdateCircuitbreakCallback is the callback function for circuit break policy when a resource is updated.
-type UpdateCircuitbreakCallback func(configs map[string]circuitbreak.CBConfig)
-
-// UpdateLimiterCallback is the callback function for limiter policy when a resource is updated.
-type UpdateLimiterCallback func(*limit.Option)
+// XDSUpdateHandler is the callback function when one type resource is updated.
+type XDSUpdateHandler func(map[string]Resource)
