@@ -25,6 +25,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/cloudwego/kitex/pkg/circuitbreak"
 	"github.com/cloudwego/kitex/pkg/klog"
 
 	"github.com/kitex-contrib/xds/core/xdsresource"
@@ -47,6 +48,8 @@ type xdsResourceManager struct {
 
 	// options
 	opts *Options
+
+	cbHandlers []xdsresource.UpdateCircuitbreakCallback
 }
 
 // notifier is used to notify the resource update along with error
@@ -115,6 +118,20 @@ func (m *xdsResourceManager) getFromCache(rType xdsresource.ResourceType, rName 
 		}
 	}
 	return nil, false
+}
+
+// RegisterCircuitBreaker registers the circuit breaker handler to resourceManager. The config stores in ClusterType xDS resource,
+// If the config changed, manager will invoke the handler.
+func (m *xdsResourceManager) RegisterCircuitBreaker(handler xdsresource.UpdateCircuitbreakCallback) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.cbHandlers = append(m.cbHandlers, handler)
+
+	res, ok := m.cache[xdsresource.ClusterType]
+	if ok {
+		updateCircuitPolicy(res, []xdsresource.UpdateCircuitbreakCallback{handler})
+	}
 }
 
 // Get gets the specified resource from cache or from the control plane.
@@ -248,10 +265,40 @@ func (m *xdsResourceManager) updateMeta(rType xdsresource.ResourceType, version 
 	}
 }
 
+func updateCircuitPolicy(res map[string]xdsresource.Resource, handlers []xdsresource.UpdateCircuitbreakCallback) {
+	// update circuit break policy
+	policies := make(map[string]circuitbreak.CBConfig)
+	for key, resource := range res {
+		cluster, ok := resource.(*xdsresource.ClusterResource)
+		if !ok {
+			continue
+		}
+		if cluster.OutlierDetection == nil {
+			continue
+		}
+		cbconfig := circuitbreak.CBConfig{}
+		if cluster.OutlierDetection.FailurePercentageRequestVolume != 0 && cluster.OutlierDetection.FailurePercentageThreshold != 0 {
+			cbconfig.Enable = true
+			cbconfig.ErrRate = float64(cluster.OutlierDetection.FailurePercentageThreshold) / 100
+			cbconfig.MinSample = int64(cluster.OutlierDetection.FailurePercentageRequestVolume)
+		}
+		policies[key] = cbconfig
+	}
+	for _, handler := range handlers {
+		handler(policies)
+	}
+}
+
 // UpdateResource is invoked by client to update the cache
 func (m *xdsResourceManager) UpdateResource(rt xdsresource.ResourceType, up map[string]xdsresource.Resource, version string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	// should update circuit policy first, as it may affect the traffic when the
+	// circuit break policy is updated at the first time.
+	if rt == xdsresource.ClusterType {
+		updateCircuitPolicy(up, m.cbHandlers)
+	}
 
 	for name, res := range up {
 		if _, ok := m.cache[rt]; !ok {

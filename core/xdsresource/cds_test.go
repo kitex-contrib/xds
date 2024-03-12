@@ -72,5 +72,9 @@ func TestUnmarshalCDSSuccess(t *testing.T) {
 	assert.Equal(t, cluster.EndpointName, EndpointName1)
 	assert.Equal(t, cluster.DiscoveryType, ClusterDiscoveryTypeEDS)
 	assert.Equal(t, cluster.LbPolicy, ClusterLbRoundRobin)
+	assert.Equal(t, cluster.OutlierDetection, &OutlierDetection{
+		FailurePercentageThreshold:     10,
+		FailurePercentageRequestVolume: 100,
+	})
 	assert.Nil(t, cluster.InlineEndpoints)
 }

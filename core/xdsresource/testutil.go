@@ -26,6 +26,7 @@ import (
 	v3thrift_proxy "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/thrift_proxy/v3"
 	v3matcher "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"github.com/golang/protobuf/ptypes/any"
+	"github.com/golang/protobuf/ptypes/wrappers"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -289,7 +290,15 @@ var (
 		EdsClusterConfig: &v3clusterpb.Cluster_EdsClusterConfig{
 			ServiceName: EndpointName1,
 		},
-		LbPolicy:       v3clusterpb.Cluster_ROUND_ROBIN,
+		LbPolicy: v3clusterpb.Cluster_ROUND_ROBIN,
+		OutlierDetection: &v3clusterpb.OutlierDetection{
+			FailurePercentageThreshold: &wrappers.UInt32Value{
+				Value: 10,
+			},
+			FailurePercentageRequestVolume: &wrappers.UInt32Value{
+				Value: 100,
+			},
+		},
 		LoadAssignment: nil,
 	}
 	Cluster2 = &v3clusterpb.Cluster{
@@ -297,6 +306,14 @@ var (
 		ClusterDiscoveryType: &v3clusterpb.Cluster_Type{Type: v3clusterpb.Cluster_EDS},
 		EdsClusterConfig: &v3clusterpb.Cluster_EdsClusterConfig{
 			ServiceName: EndpointName1,
+		},
+		OutlierDetection: &v3clusterpb.OutlierDetection{
+			FailurePercentageThreshold: &wrappers.UInt32Value{
+				Value: 10,
+			},
+			FailurePercentageRequestVolume: &wrappers.UInt32Value{
+				Value: 0,
+			},
 		},
 		LbPolicy:       v3clusterpb.Cluster_ROUND_ROBIN,
 		LoadAssignment: nil,

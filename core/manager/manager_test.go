@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudwego/kitex/pkg/circuitbreak"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/kitex-contrib/xds/core/manager/mock"
@@ -307,4 +308,56 @@ func Test_xdsResourceManager_ConcurrentGet(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+func TestRegisterCircuitBreaker(t *testing.T) {
+	m := &xdsResourceManager{
+		cache: map[xdsresource.ResourceType]map[string]xdsresource.Resource{
+			xdsresource.ClusterType: {
+				xdsresource.ClusterName1: &xdsresource.ClusterResource{
+					OutlierDetection: &xdsresource.OutlierDetection{
+						FailurePercentageThreshold:     10,
+						FailurePercentageRequestVolume: 1001,
+					},
+				},
+				xdsresource.ClusterName2: &xdsresource.ClusterResource{
+					OutlierDetection: &xdsresource.OutlierDetection{
+						FailurePercentageThreshold:     10,
+						FailurePercentageRequestVolume: 0,
+					},
+				},
+			},
+		},
+		meta: map[xdsresource.ResourceType]map[string]*xdsresource.ResourceMeta{},
+	}
+
+	policies := make(map[string]circuitbreak.CBConfig)
+	updater := func(configs map[string]circuitbreak.CBConfig) {
+		policies = configs
+	}
+	m.RegisterCircuitBreaker(updater)
+	assert.Equal(t, policies, map[string]circuitbreak.CBConfig{
+		"cluster1": {
+			Enable:    true,
+			ErrRate:   0.1,
+			MinSample: 1001,
+		},
+		"cluster2": {},
+	})
+
+	m.UpdateResource(xdsresource.ClusterType, map[string]xdsresource.Resource{
+		xdsresource.ClusterName1: &xdsresource.ClusterResource{
+			OutlierDetection: &xdsresource.OutlierDetection{
+				FailurePercentageThreshold:     1,
+				FailurePercentageRequestVolume: 100,
+			},
+		},
+	}, "latest")
+	assert.Equal(t, policies, map[string]circuitbreak.CBConfig{
+		"cluster1": {
+			Enable:    true,
+			ErrRate:   0.01,
+			MinSample: 100,
+		},
+	})
 }
