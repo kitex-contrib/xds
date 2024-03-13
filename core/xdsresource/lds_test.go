@@ -20,13 +20,15 @@ import (
 	"reflect"
 	"testing"
 
+	udpatypev1 "github.com/cncf/udpa/go/udpa/type/v1"
 	v3routepb "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	ratelimitv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/local_ratelimit/v3"
 	v3httppb "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/golang/protobuf/ptypes/any"
+	_struct "github.com/golang/protobuf/ptypes/struct"
+	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func TestUnmarshalLDSError(t *testing.T) {
@@ -162,4 +164,44 @@ func TestGetLocalRateLimitFromHttpConnectionManager(t *testing.T) {
 	token, err := getLocalRateLimitFromHttpConnectionManager(hcm)
 	assert.Equal(t, err, nil)
 	assert.Equal(t, token, uint32(10))
+
+	// ---------------------------------- struct ratelimit ------------------------------------
+	structLimit := &udpatypev1.TypedStruct{
+		TypeUrl: RateLimitTypeURL,
+		Value: &_struct.Struct{
+			Fields: map[string]*structpb.Value{
+				"token_bucket": {
+					Kind: &structpb.Value_StructValue{
+						StructValue: &structpb.Struct{
+							Fields: map[string]*structpb.Value{
+								"max_tokens": {
+									Kind: &structpb.Value_NumberValue{
+										NumberValue: 100,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	hcm1 := &v3httppb.HttpConnectionManager{
+		RouteSpecifier: &v3httppb.HttpConnectionManager_RouteConfig{
+			RouteConfig: &v3routepb.RouteConfiguration{
+				Name: "InboundPassthroughClusterIpv4",
+			},
+		},
+		HttpFilters: []*v3httppb.HttpFilter{
+			{
+				ConfigType: &v3httppb.HttpFilter_TypedConfig{
+					TypedConfig: MarshalAny(structLimit),
+				},
+			},
+		},
+	}
+	token, err = getLocalRateLimitFromHttpConnectionManager(hcm1)
+	assert.Equal(t, err, nil)
+	assert.Equal(t, token, uint32(100))
 }

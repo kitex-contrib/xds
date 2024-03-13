@@ -6,6 +6,7 @@ require (
 	github.com/bytedance/gopkg v0.0.0-20230728082804-614d0af6619b
 	github.com/cenkalti/backoff/v4 v4.1.0
 	github.com/cloudwego/kitex v0.7.3
+	github.com/cncf/udpa/go v0.0.0-20220112060539-c52dc94e7fbe
 	github.com/envoyproxy/go-control-plane v0.11.1
 	github.com/golang/protobuf v1.5.3
 	github.com/stretchr/testify v1.8.3

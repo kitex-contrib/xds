@@ -69,6 +69,8 @@ const (
 	RuntimeTypeURL         = apiTypePrefix + "envoy.service.runtime.v3.Runtime"
 	HTTPConnManagerTypeURL = apiTypePrefix + "envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager"
 	ThriftProxyTypeURL     = apiTypePrefix + "envoy.extensions.filters.network.thrift_proxy.v3.ThriftProxy"
+	RateLimitTypeURL       = apiTypePrefix + "envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit"
+	TypedStructTypeURL     = apiTypePrefix + "udpa.type.v1.TypedStruct"
 
 	NameTableTypeURL = apiTypePrefix + "istio.networking.nds.v1.NameTable"
 	// AnyType is used only by ADS

@@ -19,6 +19,7 @@ package xdsresource
 import (
 	"fmt"
 
+	udpatypev1 "github.com/cncf/udpa/go/udpa/type/v1"
 	v3listenerpb "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	v3routepb "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	ratelimitv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/local_ratelimit/v3"
@@ -246,17 +247,34 @@ func getLocalRateLimitFromHttpConnectionManager(hcm *v3httppb.HttpConnectionMana
 			if filter.GetTypedConfig() == nil {
 				continue
 			}
-			if filter.GetTypedConfig().TypeUrl == "type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit" ||
-				filter.Name == "envoy.filters.http.local_ratelimit" {
+			typedConfig := filter.GetTypedConfig().GetValue()
+			switch filter.GetTypedConfig().TypeUrl {
+			case RateLimitTypeURL:
 				lrl := &ratelimitv3.LocalRateLimit{}
-				if err := proto.Unmarshal(filter.GetTypedConfig().GetValue(), lrl); err != nil {
+				if err := proto.Unmarshal(typedConfig, lrl); err != nil {
 					return 0, fmt.Errorf("unmarshal LocalRateLimit failed: %s", err)
 				}
 				if lrl.TokenBucket != nil {
 					return lrl.TokenBucket.MaxTokens, nil
 				}
+			case TypedStructTypeURL:
+				// ratelimit may be configed with udpa struct.
+				ts := &udpatypev1.TypedStruct{}
+				if err := proto.Unmarshal(typedConfig, ts); err != nil {
+					return 0, fmt.Errorf("unmarshal TypedStruct failed: %s", err)
+				}
+				tokenBucket, ok := ts.GetValue().GetFields()["token_bucket"]
+				if !ok {
+					continue
+				}
+				maxTokens, ok := tokenBucket.GetStructValue().GetFields()["max_tokens"]
+				if !ok {
+					continue
+				}
+				return uint32(maxTokens.GetNumberValue()), nil
 			}
 		}
+		return 0, nil
 	}
 	return 0, nil
 }
