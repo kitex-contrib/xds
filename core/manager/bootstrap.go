@@ -162,7 +162,11 @@ func (bc *BootstrapConfig) tryExpandFQDN(host string) string {
 			b.WriteString(bc.nodeDomain)
 		}
 	default:
-		// ignore the other cases
+		// if the host contains more than 4 parts, try to add all the info.
+		b.WriteString(".")
+		b.WriteString(bc.configNamespace)
+		b.WriteString(".svc.")
+		b.WriteString(bc.nodeDomain)
 	}
 
 	return b.String()

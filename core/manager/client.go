@@ -408,12 +408,18 @@ func (c *xdsClient) sendRequest(req *discoveryv3.DiscoveryRequest) {
 }
 
 func (c *xdsClient) resolveAddr(host string) string {
+	// use the host as case-insensitive manner, it alse works in Kubernetes
+	// ref: https://www.ietf.org/rfc/rfc1035.txt
+	// ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-subdomain-names
+	host = strings.ToLower(host)
 	// In the worst case, lookupHost is called twice, try to reduce it.
 	// May exists three kind host:
 	// 1. fqdn host in Kubernetes, such as example.default.svc.cluster.local, invoke once always.
 	// 2. short name in Kubernetes, such as example, invoke once when the host exists in cipResolver, and twice when the host does not exist in cipResolver.
 	// 3. service outside Kubernetes, such as www.example.com, invoke twice always.
+	// 4. service with more than 4 parts, such as dubbo interface org.cloudwego.kitex.samples.api.greetprovider, invoke twice always.
 	// FIXME: format as <serviceName>.<namespace> is not supported.
+	// TODO: if it leads to performance issue, use cache to improve it.
 	fqdn := c.config.tryExpandFQDN(host)
 	cip, ok := c.cipResolver.lookupHost(fqdn)
 	if ok && len(cip) > 0 {
@@ -431,11 +437,20 @@ func (c *xdsClient) resolveAddr(host string) string {
 // getListenerName returns the listener name in this format: ${clusterIP}_${port}
 // lookup the clusterIP using the cipResolver and return the listenerName
 func (c *xdsClient) getListenerName(rName string) (string, error) {
+	var (
+		port = "80"
+		addr string
+	)
+
 	tmp := strings.Split(rName, ":")
-	if len(tmp) != 2 {
+	switch len(tmp) {
+	case 1:
+		addr = tmp[0]
+	case 2:
+		addr, port = tmp[0], tmp[1]
+	default:
 		return "", fmt.Errorf("invalid listener name: %s", rName)
 	}
-	addr, port := tmp[0], tmp[1]
 	cip := c.resolveAddr(addr)
 	if len(cip) > 0 {
 		return cip + "_" + port, nil
