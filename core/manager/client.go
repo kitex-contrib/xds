@@ -408,7 +408,7 @@ func (c *xdsClient) sendRequest(req *discoveryv3.DiscoveryRequest) {
 }
 
 func (c *xdsClient) resolveAddr(host string) string {
-	// use the host as case-insensitive manner, it alse works in Kubernetes
+	// use the host as case-insensitive manner, it also works in Kubernetes
 	// ref: https://www.ietf.org/rfc/rfc1035.txt
 	// ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-subdomain-names
 	host = strings.ToLower(host)

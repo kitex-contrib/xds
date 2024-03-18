@@ -258,7 +258,7 @@ func getLocalRateLimitFromHttpConnectionManager(hcm *v3httppb.HttpConnectionMana
 					return lrl.TokenBucket.MaxTokens, nil
 				}
 			case TypedStructTypeURL:
-				// ratelimit may be configed with udpa struct.
+				// ratelimit may be configured with udpa struct.
 				ts := &udpatypev1.TypedStruct{}
 				if err := proto.Unmarshal(typedConfig, ts); err != nil {
 					return 0, fmt.Errorf("unmarshal TypedStruct failed: %s", err)
