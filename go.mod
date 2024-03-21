@@ -3,9 +3,9 @@ module github.com/kitex-contrib/xds
 go 1.17
 
 require (
-	github.com/bytedance/gopkg v0.0.0-20230728082804-614d0af6619b
+	github.com/bytedance/gopkg v0.0.0-20240514070511-01b2cbcf35e1
 	github.com/cenkalti/backoff/v4 v4.1.0
-	github.com/cloudwego/kitex v0.7.3
+	github.com/cloudwego/kitex v0.9.3-rc
 	github.com/cncf/udpa/go v0.0.0-20220112060539-c52dc94e7fbe
 	github.com/envoyproxy/go-control-plane v0.11.1
 	github.com/golang/protobuf v1.5.3
@@ -16,18 +16,19 @@ require (
 
 require (
 	github.com/apache/thrift v0.16.0 // indirect
-	github.com/bytedance/sonic v1.9.1 // indirect
+	github.com/bytedance/sonic v1.11.6 // indirect
+	github.com/bytedance/sonic/loader v0.1.1 // indirect
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
-	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
-	github.com/chenzhuoyu/iasm v0.9.0 // indirect
-	github.com/choleraehyq/pid v0.0.17 // indirect
-	github.com/cloudwego/configmanager v0.2.0 // indirect
-	github.com/cloudwego/dynamicgo v0.1.3 // indirect
+	github.com/cloudwego/base64x v0.1.4 // indirect
+	github.com/cloudwego/configmanager v0.2.2 // indirect
+	github.com/cloudwego/dynamicgo v0.2.4 // indirect
 	github.com/cloudwego/fastpb v0.0.4 // indirect
-	github.com/cloudwego/frugal v0.1.8 // indirect
+	github.com/cloudwego/frugal v0.1.15 // indirect
+	github.com/cloudwego/iasm v0.2.0 // indirect
 	github.com/cloudwego/localsession v0.0.2 // indirect
-	github.com/cloudwego/netpoll v0.5.1 // indirect
-	github.com/cloudwego/thriftgo v0.3.2-0.20230828085742-edaddf2c17af // indirect
+	github.com/cloudwego/netpoll v0.6.1-0.20240516030022-a9a224c3e494 // indirect
+	github.com/cloudwego/runtimex v0.1.0 // indirect
+	github.com/cloudwego/thriftgo v0.3.6 // indirect
 	github.com/cncf/xds/go v0.0.0-20230607035331-e9ce68804cb4 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.0.1 // indirect
@@ -48,10 +49,10 @@ require (
 	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	golang.org/x/arch v0.2.0 // indirect
-	golang.org/x/net v0.10.0 // indirect
+	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
-	golang.org/x/sys v0.8.0 // indirect
-	golang.org/x/text v0.9.0 // indirect
+	golang.org/x/sys v0.13.0 // indirect
+	golang.org/x/text v0.13.0 // indirect
 	google.golang.org/genproto v0.0.0-20230526203410-71b5a4ffd15e // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20230526203410-71b5a4ffd15e // indirect
 	google.golang.org/grpc v1.56.3 // indirect
@@ -66,3 +67,5 @@ require (
 )
 
 replace github.com/apache/thrift => github.com/apache/thrift v0.13.0
+
+replace github.com/cloudwego/kitex => github.com/whalecold/kitex v0.0.0-20240528122116-44766d0a76a5
