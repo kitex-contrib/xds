@@ -18,6 +18,9 @@ Kitex 通过外部扩展 [kitex-contrib/xds](https://github.com/kitex-contrib/xd
 * 熔断:
     * [Cluster](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/outlier_detection.proto) 内包含的配置，需要通过 EnvoyFilter 来配置，目前只支持错误率熔断。 
 
+* 限流:
+    * [Listener](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/listener/v3/listener.proto) 中的 [Local rate Limit](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/local_rate_limit_filter) 内包含的配置，需要通过 EnvoyFilter 来配置。
+
 ## 开启方式
 开启的步骤分为两个部分：1. xDS 模块的初始化和 2. Kitex Client/Server 的 Option 配置。
 
@@ -193,6 +196,67 @@ spec:
     timeout: 0.5s
 ```
 
+#### 熔断配置
+
+```
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: circuitbreak
+  # 服务所在 namespace
+  namespace: default
+spec:
+  configPatches:
+  - applyTo: CLUSTER
+    match:
+      context: SIDECAR_OUTBOUND
+      cluster:
+        # 服务名称 + namespace + .svc.cluster.local 后缀
+        service: kitex-server.default.svc.cluster.local
+    patch:
+      operation: MERGE
+      value:
+        outlier_detection:
+          # 触发熔断错误百分比
+          failure_percentage_threshold: 10
+          # 触发熔断请求量
+          failure_percentage_request_volume: 101
+```
+
+#### 限流配置
+
+```
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: filter-local-ratelimit-svc
+  namespace: default
+spec:
+  configPatches:
+    - applyTo: HTTP_FILTER
+      match:
+        context: SIDECAR_INBOUND
+        listener:
+          filterChain:
+            filter:
+              name: "envoy.filters.network.http_connection_manager"
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.local_ratelimit
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+            stat_prefix: http_local_rate_limiter
+            token_bucket:
+              # 限流参数
+              max_tokens: 4
+  workloadSelector:
+    labels:
+      # 服务实例 pod 的标签，根据实际情况填写
+      app.kubernetes.io/name: kitex-server
+
+```
+
 ## 示例
 完整的客户端用法如下:
 
@@ -247,9 +311,9 @@ spec:
 ``` 
 
 ### 有限的服务治理功能
-当前版本仅支持客户端通过 xDS 进行服务发现、流量路由、超时配置和熔断。
+当前版本仅支持客户端通过 xDS 进行服务发现、流量路由、速率限制、超时配置和熔断。
 
-xDS 所支持的其他服务治理功能，包括负载平衡、速率限制和重试等，将在未来补齐。
+xDS 所支持的其他服务治理功能，包括负载平衡和重试等，将在未来补齐。
 
 ## 兼容性
 此项目仅在 Istio1.13.3 下进行测试。
