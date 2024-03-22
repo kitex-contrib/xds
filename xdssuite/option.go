@@ -22,6 +22,7 @@ import (
 	"github.com/bytedance/gopkg/cloud/metainfo"
 	"github.com/cloudwego/kitex/client"
 	"github.com/cloudwego/kitex/pkg/xds"
+	"github.com/cloudwego/kitex/server"
 )
 
 type routerMetaExtractor func(context.Context) map[string]string
@@ -29,6 +30,7 @@ type routerMetaExtractor func(context.Context) map[string]string
 // Options for xds suite
 type Options struct {
 	routerMetaExtractor routerMetaExtractor // use metainfo.GetAllValues by default.
+	servicePort         uint32
 }
 
 func (o *Options) Apply(opts []Option) {
@@ -78,4 +80,22 @@ func NewClientSuite(opts ...Option) *clientSuite {
 		}),
 	}
 	return &clientSuite{cOpts}
+}
+
+type serverSuite struct {
+	cOpts []server.Option
+}
+
+func (s *serverSuite) Options() []server.Option {
+	return s.cOpts
+}
+
+// NewServerSuite server suite for xds handler
+func NewServerSuite(opts ...Option) *serverSuite {
+	cOpts := []server.Option{
+		NewLimiter(opts...),
+	}
+	return &serverSuite{
+		cOpts: cOpts,
+	}
 }

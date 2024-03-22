@@ -19,6 +19,9 @@ This project adds xDS support for Kitex and enables Kitex to perform in Proxyles
 * CircuitBreaking
     * Configuration inside [Cluster](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/outlier_detection.proto) configuration: configure via EnvoyFilter.
 
+* RateLimit
+    * Configuration inside [Local rate Limit](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/local_rate_limit_filter) configuration: configure via EnvoyFilter.
+
 ## Usage
 There are two steps for enabling xDS for Kitex applications: 1. xDS module initialization and 2. Kitex Client/Server Option configuration.
 
@@ -203,6 +206,68 @@ spec:
     timeout: 0.5s
 ```
 
+#### CircuitBreaking
+
+```
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: circuitbreak
+  # the namespace of pod
+  namespace: default
+spec:
+  configPatches:
+  - applyTo: CLUSTER
+    match:
+      context: SIDECAR_OUTBOUND
+      cluster:
+        # serviceName + namespace + .svc.cluster.local 
+        service: kitex-server.default.svc.cluster.local
+    patch:
+      operation: MERGE
+      value:
+        outlier_detection:
+          # the failure percentage threshold
+          failure_percentage_threshold: 10
+          # the failure percentage request volume
+          failure_percentage_request_volume: 101
+```
+
+#### RateLimit
+
+```
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: filter-local-ratelimit-svc
+  namespace: default
+spec:
+  configPatches:
+    - applyTo: HTTP_FILTER
+      match:
+        context: SIDECAR_INBOUND
+        listener:
+          filterChain:
+            filter:
+              name: "envoy.filters.network.http_connection_manager"
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.local_ratelimit
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+            stat_prefix: http_local_rate_limiter
+            token_bucket:
+              # the qps limit
+              max_tokens: 4
+  workloadSelector:
+    labels:
+      # the label of the service pod.
+      app.kubernetes.io/name: kitex-server
+
+```
+
+
 
 ## Example
 The usage is as follows:
@@ -258,9 +323,9 @@ spec:
 ``` 
 
 ### Limited support for Service Governance
-Current version only support Service Discovery, Traffic route, Timeout Configuration via xDS on the client-side and circuit-breaking. 
+Current version only support Service Discovery, Traffic route, Rate Limit, Timeout Configuration via xDS on the client-side and circuit-breaking. 
 
-Other features supported via xDS, including Load Balancing, Rate Limit and Retry etc, will be added in the future.
+Other features supported via xDS, including Load Balancing and Retry etc, will be added in the future.
 
 ## Compatibility
 This package is only tested under Istio1.13.3.

@@ -33,6 +33,7 @@ import (
 type RouteConfigResource struct {
 	HTTPRouteConfig   *HTTPRouteConfig
 	ThriftRouteConfig *ThriftRouteConfig
+	MaxTokens         uint32
 }
 
 type HTTPRouteConfig struct {

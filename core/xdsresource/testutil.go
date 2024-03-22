@@ -22,9 +22,11 @@ import (
 	v3endpointpb "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	v3listenerpb "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	v3routepb "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	ratelimitv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/local_ratelimit/v3"
 	v3httppb "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	v3thrift_proxy "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/thrift_proxy/v3"
 	v3matcher "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
+	typedv3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"google.golang.org/protobuf/proto"
@@ -102,12 +104,24 @@ var (
 			},
 		},
 	}
+	rateLimit = &ratelimitv3.LocalRateLimit{
+		TokenBucket: &typedv3.TokenBucket{
+			MaxTokens: 10,
+		},
+	}
 	// Rds
 	httpConnectionManager1 = &v3httppb.HttpConnectionManager{
 		RouteSpecifier: &v3httppb.HttpConnectionManager_Rds{
 			Rds: &v3httppb.Rds{
 				ConfigSource:    nil,
 				RouteConfigName: RouteConfigName1,
+			},
+		},
+		HttpFilters: []*v3httppb.HttpFilter{
+			{
+				ConfigType: &v3httppb.HttpFilter_TypedConfig{
+					TypedConfig: MarshalAny(rateLimit),
+				},
 			},
 		},
 	}
@@ -125,6 +139,7 @@ var (
 	ClusterIP1       = "0.0.0.0"
 	ListenerName1    = HostName1 + ":" + Port1
 	ReturnedLisName1 = ClusterIP1 + "_" + Port1
+	ReturnedInbound  = "virtualInbound"
 
 	HostName2        = "host2"
 	Port2            = "8080"
@@ -133,10 +148,30 @@ var (
 	ReturnedLisName2 = ClusterIP2 + "_" + Port2
 	ReturnedLisName3 = "lis3"
 
+	InboundListener1 = &v3listenerpb.Listener{
+		Name: ReturnedInbound,
+		FilterChains: []*v3listenerpb.FilterChain{
+			{
+				FilterChainMatch: &v3listenerpb.FilterChainMatch{
+					DestinationPort: wrapperspb.UInt32(80),
+				},
+				Filters: []*v3listenerpb.Filter{
+					{
+						ConfigType: &v3listenerpb.Filter_TypedConfig{
+							TypedConfig: MarshalAny(httpConnectionManager1),
+						},
+					},
+				},
+			},
+		},
+	}
 	Listener1 = &v3listenerpb.Listener{
 		Name: ReturnedLisName1,
 		FilterChains: []*v3listenerpb.FilterChain{
 			{
+				FilterChainMatch: &v3listenerpb.FilterChainMatch{
+					DestinationPort: wrapperspb.UInt32(80),
+				},
 				Filters: []*v3listenerpb.Filter{
 					{
 						ConfigType: &v3listenerpb.Filter_TypedConfig{
