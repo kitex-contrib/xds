@@ -30,7 +30,7 @@ import (
 func setLimitOption(token uint32) *limit.Option {
 	maxQPS := int(token)
 	// if the token is zero, set the value to Max to disable the limiter
-	if 0 == maxQPS {
+	if maxQPS == 0 {
 		maxQPS = math.MaxInt
 	}
 	return &limit.Option{
