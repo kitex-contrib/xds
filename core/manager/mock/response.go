@@ -25,12 +25,25 @@ import (
 
 // LDS Response
 var (
-	LDSVersion1 = "v1"
-	LDSVersion2 = "v2"
-	LDSVersion3 = "v3"
-	LDSNonce1   = "nonce1"
-	LDSNonce2   = "nonce2"
-	LDSNonce3   = "nonce3"
+	LDSVersionInit = "init"
+	LDSVersion1    = "v1"
+	LDSVersion2    = "v2"
+	LDSVersion3    = "v3"
+	LDSNonceInit   = "init"
+	LDSNonce1      = "nonce1"
+	LDSNonce2      = "nonce2"
+	LDSNonce3      = "nonce3"
+
+	LdsInbound = &discoveryv3.DiscoveryResponse{
+		VersionInfo: LDSVersion1,
+		Resources: []*any.Any{
+			xdsresource.MarshalAny(xdsresource.InboundListener1),
+		},
+		Canary:       false,
+		TypeUrl:      xdsresource.ListenerTypeURL,
+		ControlPlane: nil,
+		Nonce:        LDSNonceInit,
+	}
 
 	LdsResp1 = &discoveryv3.DiscoveryResponse{
 		VersionInfo: LDSVersion1,

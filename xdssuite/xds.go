@@ -41,8 +41,8 @@ func (m *singletonManager) getManager() XDSResourceManager {
 // Get() returns error when the fetching fails or the resource is not found in the latest update.
 type XDSResourceManager interface {
 	Get(ctx context.Context, resourceType xdsresource.ResourceType, resourceName string) (interface{}, error)
-	// RegisterCircuitBreaker registers the callback function for circuit breaker
-	RegisterCircuitBreaker(xdsresource.UpdateCircuitbreakCallback)
+	// RegisterXDSUpdateHandler registers the callback function for the specified resource
+	RegisterXDSUpdateHandler(resourceType xdsresource.ResourceType, handler xdsresource.XDSUpdateHandler)
 }
 
 func XDSInited() bool {

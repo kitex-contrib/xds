@@ -20,11 +20,10 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/cloudwego/kitex/pkg/rpcinfo"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/kitex-contrib/xds/core/xdsresource"
-
-	"github.com/cloudwego/kitex/pkg/rpcinfo"
 )
 
 var (

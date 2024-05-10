@@ -19,8 +19,10 @@ package xdsresource
 import (
 	"fmt"
 
+	udpatypev1 "github.com/cncf/udpa/go/udpa/type/v1"
 	v3listenerpb "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	v3routepb "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	ratelimitv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/local_ratelimit/v3"
 	v3httppb "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	v3thrift_proxy "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/thrift_proxy/v3"
 	"github.com/golang/protobuf/ptypes/any"
@@ -51,6 +53,7 @@ const (
 type NetworkFilter struct {
 	FilterType        NetworkFilterType
 	RouteConfigName   string
+	RoutePort         uint32
 	InlineRouteConfig *RouteConfigResource
 }
 
@@ -88,6 +91,7 @@ func UnmarshalLDS(rawResources []*any.Any) (map[string]*ListenerResource, error)
 				nfs = append(nfs, res...)
 			}
 		}
+
 		if fc := lis.DefaultFilterChain; fc != nil {
 			res, err := unmarshalFilterChain(fc)
 			if err != nil {
@@ -111,6 +115,7 @@ func UnmarshalLDS(rawResources []*any.Any) (map[string]*ListenerResource, error)
 // unmarshalFilterChain unmarshalls the filter chain.
 // Only process HttpConnectionManager and ThriftProxy now.
 func unmarshalFilterChain(fc *v3listenerpb.FilterChain) ([]*NetworkFilter, error) {
+	matchPort := fc.GetFilterChainMatch().GetDestinationPort().GetValue()
 	var filters []*NetworkFilter
 	var errSlice []error
 	for _, f := range fc.Filters {
@@ -136,6 +141,7 @@ func unmarshalFilterChain(fc *v3listenerpb.FilterChain) ([]*NetworkFilter, error
 				filters = append(filters, &NetworkFilter{
 					FilterType:        NetworkFilterTypeHTTP,
 					RouteConfigName:   n,
+					RoutePort:         matchPort,
 					InlineRouteConfig: r,
 				})
 			}
@@ -201,6 +207,10 @@ func unmarshallHTTPConnectionManager(rawResources *any.Any) (string, *RouteConfi
 	if err := proto.Unmarshal(rawResources.GetValue(), httpConnMng); err != nil {
 		return "", nil, fmt.Errorf("unmarshal HttpConnectionManager failed: %s", err)
 	}
+	maxTokens, err := getLocalRateLimitFromHttpConnectionManager(httpConnMng)
+	if err != nil {
+		return "", nil, err
+	}
 	// convert listener
 	// 1. RDS
 	// 2. inline route config
@@ -212,7 +222,9 @@ func unmarshallHTTPConnectionManager(rawResources *any.Any) (string, *RouteConfi
 		if httpConnMng.GetRds().GetRouteConfigName() == "" {
 			return "", nil, fmt.Errorf("no route config Name")
 		}
-		return httpConnMng.GetRds().GetRouteConfigName(), nil, nil
+		return httpConnMng.GetRds().GetRouteConfigName(), &RouteConfigResource{
+			MaxTokens: maxTokens,
+		}, nil
 	case *v3httppb.HttpConnectionManager_RouteConfig:
 		var rcfg *v3routepb.RouteConfiguration
 		if rcfg = httpConnMng.GetRouteConfig(); rcfg == nil {
@@ -222,7 +234,47 @@ func unmarshallHTTPConnectionManager(rawResources *any.Any) (string, *RouteConfi
 		if err != nil {
 			return "", nil, err
 		}
+		inlineRouteConfig.MaxTokens = maxTokens
 		return httpConnMng.GetRouteConfig().GetName(), inlineRouteConfig, nil
 	}
 	return "", nil, nil
+}
+
+func getLocalRateLimitFromHttpConnectionManager(hcm *v3httppb.HttpConnectionManager) (uint32, error) {
+	for _, filter := range hcm.HttpFilters {
+		switch filter.ConfigType.(type) {
+		case *v3httppb.HttpFilter_TypedConfig:
+			if filter.GetTypedConfig() == nil {
+				continue
+			}
+			typedConfig := filter.GetTypedConfig().GetValue()
+			switch filter.GetTypedConfig().TypeUrl {
+			case RateLimitTypeURL:
+				lrl := &ratelimitv3.LocalRateLimit{}
+				if err := proto.Unmarshal(typedConfig, lrl); err != nil {
+					return 0, fmt.Errorf("unmarshal LocalRateLimit failed: %s", err)
+				}
+				if lrl.TokenBucket != nil {
+					return lrl.TokenBucket.MaxTokens, nil
+				}
+			case TypedStructTypeURL:
+				// ratelimit may be configured with udpa struct.
+				ts := &udpatypev1.TypedStruct{}
+				if err := proto.Unmarshal(typedConfig, ts); err != nil {
+					return 0, fmt.Errorf("unmarshal TypedStruct failed: %s", err)
+				}
+				tokenBucket, ok := ts.GetValue().GetFields()["token_bucket"]
+				if !ok {
+					continue
+				}
+				maxTokens, ok := tokenBucket.GetStructValue().GetFields()["max_tokens"]
+				if !ok {
+					continue
+				}
+				return uint32(maxTokens.GetNumberValue()), nil
+			}
+		}
+		return 0, nil
+	}
+	return 0, nil
 }

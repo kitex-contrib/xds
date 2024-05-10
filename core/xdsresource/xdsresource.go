@@ -19,8 +19,6 @@ package xdsresource
 import (
 	"sync/atomic"
 	"time"
-
-	"github.com/cloudwego/kitex/pkg/circuitbreak"
 )
 
 type Resource interface{}
@@ -31,6 +29,15 @@ type ResourceMeta struct {
 	UpdateTime     time.Time
 	LastAccessTime atomic.Value
 }
+
+const (
+	// ReservedLdsResourceName the virtualInbound is used for server side configuration, should
+	// initialize it in the first and reserved for the all lifecycle.
+	ReservedLdsResourceName = "virtualInbound"
+
+	// DefaultServerPort if not set port for the server, it will use this.
+	DefaultServerPort = 0
+)
 
 type ResourceType int
 
@@ -62,6 +69,8 @@ const (
 	RuntimeTypeURL         = apiTypePrefix + "envoy.service.runtime.v3.Runtime"
 	HTTPConnManagerTypeURL = apiTypePrefix + "envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager"
 	ThriftProxyTypeURL     = apiTypePrefix + "envoy.extensions.filters.network.thrift_proxy.v3.ThriftProxy"
+	RateLimitTypeURL       = apiTypePrefix + "envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit"
+	TypedStructTypeURL     = apiTypePrefix + "udpa.type.v1.TypedStruct"
 
 	NameTableTypeURL = apiTypePrefix + "istio.networking.nds.v1.NameTable"
 	// AnyType is used only by ADS
@@ -92,5 +101,5 @@ var ResourceTypeToName = map[ResourceType]string{
 	NameTableType:   "NameTable",
 }
 
-// UpdateCircuitbreakCallback is the callback function for circuit break policy when a resource is updated.
-type UpdateCircuitbreakCallback func(configs map[string]circuitbreak.CBConfig)
+// XDSUpdateHandler is the callback function when one type resource is updated.
+type XDSUpdateHandler func(map[string]Resource)

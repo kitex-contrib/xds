@@ -25,7 +25,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/cloudwego/kitex/pkg/circuitbreak"
 	"github.com/cloudwego/kitex/pkg/klog"
 
 	"github.com/kitex-contrib/xds/core/xdsresource"
@@ -49,7 +48,9 @@ type xdsResourceManager struct {
 	// options
 	opts *Options
 
-	cbHandlers []xdsresource.UpdateCircuitbreakCallback
+	// the xdsResourceManager provides the mechanism for the user to monitor the
+	// changes to xds resources and update their policies.
+	xdsHandlers map[xdsresource.ResourceType][]xdsresource.XDSUpdateHandler
 }
 
 // notifier is used to notify the resource update along with error
@@ -74,6 +75,7 @@ func NewXDSResourceManager(bootstrapConfig *BootstrapConfig, opts ...Option) (*x
 		mu:          sync.RWMutex{},
 		opts:        NewOptions(opts),
 		closeCh:     make(chan struct{}),
+		xdsHandlers: make(map[xdsresource.ResourceType][]xdsresource.XDSUpdateHandler),
 	}
 	// Initial xds client
 	if bootstrapConfig == nil {
@@ -120,17 +122,17 @@ func (m *xdsResourceManager) getFromCache(rType xdsresource.ResourceType, rName 
 	return nil, false
 }
 
-// RegisterCircuitBreaker registers the circuit breaker handler to resourceManager. The config stores in ClusterType xDS resource,
-// If the config changed, manager will invoke the handler.
-func (m *xdsResourceManager) RegisterCircuitBreaker(handler xdsresource.UpdateCircuitbreakCallback) {
+// RegisterXDSUpdateHandler the xdsResourceManager provides the mechanism for the user to monitor the
+// changes to xds resources and update their policies.
+func (m *xdsResourceManager) RegisterXDSUpdateHandler(resourceType xdsresource.ResourceType, handler xdsresource.XDSUpdateHandler) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.cbHandlers = append(m.cbHandlers, handler)
+	m.xdsHandlers[resourceType] = append(m.xdsHandlers[resourceType], handler)
 
-	res, ok := m.cache[xdsresource.ClusterType]
+	res, ok := m.cache[resourceType]
 	if ok {
-		updateCircuitPolicy(res, []xdsresource.UpdateCircuitbreakCallback{handler})
+		handler(res)
 	}
 }
 
@@ -200,7 +202,8 @@ func (m *xdsResourceManager) cleaner() {
 					if !ok {
 						continue
 					}
-					if time.Since(t) > defaultCacheExpireTime {
+					// should not delete the reserved resource
+					if !isReservedResource(rt, rName) && time.Since(t) > defaultCacheExpireTime {
 						delete(m.meta[rt], rName)
 						if m.cache[rt] != nil {
 							delete(m.cache[rt], rName)
@@ -265,39 +268,19 @@ func (m *xdsResourceManager) updateMeta(rType xdsresource.ResourceType, version 
 	}
 }
 
-func updateCircuitPolicy(res map[string]xdsresource.Resource, handlers []xdsresource.UpdateCircuitbreakCallback) {
-	// update circuit break policy
-	policies := make(map[string]circuitbreak.CBConfig)
-	for key, resource := range res {
-		cluster, ok := resource.(*xdsresource.ClusterResource)
-		if !ok {
-			continue
-		}
-		if cluster.OutlierDetection == nil {
-			continue
-		}
-		cbconfig := circuitbreak.CBConfig{}
-		if cluster.OutlierDetection.FailurePercentageRequestVolume != 0 && cluster.OutlierDetection.FailurePercentageThreshold != 0 {
-			cbconfig.Enable = true
-			cbconfig.ErrRate = float64(cluster.OutlierDetection.FailurePercentageThreshold) / 100
-			cbconfig.MinSample = int64(cluster.OutlierDetection.FailurePercentageRequestVolume)
-		}
-		policies[key] = cbconfig
-	}
-	for _, handler := range handlers {
-		handler(policies)
-	}
-}
+// the routeConfigName
 
 // UpdateResource is invoked by client to update the cache
 func (m *xdsResourceManager) UpdateResource(rt xdsresource.ResourceType, up map[string]xdsresource.Resource, version string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// should update circuit policy first, as it may affect the traffic when the
-	// circuit break policy is updated at the first time.
-	if rt == xdsresource.ClusterType {
-		updateCircuitPolicy(up, m.cbHandlers)
+	// should update xds updater first, as it may affect the traffic when the
+	// policy is updated at the first time.
+	if handlers, ok := m.xdsHandlers[rt]; ok {
+		for _, handler := range handlers {
+			handler(up)
+		}
 	}
 
 	for name, res := range up {
@@ -324,4 +307,8 @@ func (m *xdsResourceManager) UpdateResource(rt xdsresource.ResourceType, up map[
 	}
 	// update meta
 	m.updateMeta(rt, version)
+}
+
+func isReservedResource(resourceType xdsresource.ResourceType, resourceName string) bool {
+	return resourceType == xdsresource.ListenerType && resourceName == xdsresource.ReservedLdsResourceName
 }

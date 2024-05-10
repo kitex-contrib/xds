@@ -22,6 +22,8 @@ import (
 	"github.com/cloudwego/kitex/client"
 	"github.com/cloudwego/kitex/pkg/circuitbreak"
 	"github.com/cloudwego/kitex/pkg/rpcinfo"
+
+	"github.com/kitex-contrib/xds/core/xdsresource"
 )
 
 type circuitBreaker struct {
@@ -52,11 +54,35 @@ func (cb *circuitBreaker) updateAllCircuitConfigs(configs map[string]circuitbrea
 	// disable the old policies that are not in the new configs.
 	for k := range lastPolicies {
 		if _, ok := newPolicies[k]; !ok {
+			// TODO: the CBSuite not provides the deleting interface, that
+			// may lead to memory leak.
 			cb.cb.UpdateServiceCBConfig(k, circuitbreak.CBConfig{
 				Enable: false,
 			})
 		}
 	}
+}
+
+func updateCircuitPolicy(res map[string]xdsresource.Resource, handler func(map[string]circuitbreak.CBConfig)) {
+	// update circuit break policy
+	policies := make(map[string]circuitbreak.CBConfig)
+	for key, resource := range res {
+		cluster, ok := resource.(*xdsresource.ClusterResource)
+		if !ok {
+			continue
+		}
+		if cluster.OutlierDetection == nil {
+			continue
+		}
+		cbconfig := circuitbreak.CBConfig{}
+		if cluster.OutlierDetection.FailurePercentageRequestVolume != 0 && cluster.OutlierDetection.FailurePercentageThreshold != 0 {
+			cbconfig.Enable = true
+			cbconfig.ErrRate = float64(cluster.OutlierDetection.FailurePercentageThreshold) / 100
+			cbconfig.MinSample = int64(cluster.OutlierDetection.FailurePercentageRequestVolume)
+		}
+		policies[key] = cbconfig
+	}
+	handler(policies)
 }
 
 // NewCircuitBreaker integrate xds config and kitex circuitbreaker
@@ -69,7 +95,9 @@ func NewCircuitBreaker() client.Option {
 	cb := &circuitBreaker{
 		cb: circuitbreak.NewCBSuite(genServiceCBKey),
 	}
-	m.RegisterCircuitBreaker(cb.updateAllCircuitConfigs)
+	m.RegisterXDSUpdateHandler(xdsresource.ClusterType, func(res map[string]xdsresource.Resource) {
+		updateCircuitPolicy(res, cb.updateAllCircuitConfigs)
+	})
 	return client.WithCircuitBreaker(cb.cb)
 }
 

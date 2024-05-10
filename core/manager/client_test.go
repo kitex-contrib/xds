@@ -44,6 +44,7 @@ var (
 		notifierMap: make(map[xdsresource.ResourceType]map[string]*notifier),
 		mu:          sync.RWMutex{},
 		opts:        NewOptions(nil),
+		xdsHandlers: map[xdsresource.ResourceType][]xdsresource.XDSUpdateHandler{},
 	}
 	mockBootstrapConfig = &BootstrapConfig{
 		node:      NodeProto,
@@ -104,7 +105,7 @@ func Test_newXdsClient(t *testing.T) {
 	c, err := initXDSClient(&BootstrapConfig{
 		node:      &v3core.Node{},
 		xdsSvrCfg: &XDSServerConfig{SvrAddr: address, SvrName: IstiodSvrName},
-	}, nil)
+	}, mockUpdater)
 	defer c.close()
 	assert.Nil(t, err)
 }
@@ -112,17 +113,18 @@ func Test_newXdsClient(t *testing.T) {
 func Test_xdsClient_handleResponse(t *testing.T) {
 	// inject mock
 	c := &xdsClient{
-		config:          mockBootstrapConfig,
-		adsClient:       &mockADSClient{},
-		connectBackoff:  backoff.NewExponentialBackOff(),
-		watchedResource: make(map[xdsresource.ResourceType]map[string]bool),
-		cipResolver:     newNdsResolver(),
-		versionMap:      make(map[xdsresource.ResourceType]string),
-		nonceMap:        make(map[xdsresource.ResourceType]string),
-		resourceUpdater: mockUpdater,
-		closeCh:         make(chan struct{}),
-		streamCh:        make(chan ADSStream, 1),
-		reqCh:           make(chan *discoveryv3.DiscoveryRequest, 1024),
+		config:               mockBootstrapConfig,
+		adsClient:            &mockADSClient{},
+		connectBackoff:       backoff.NewExponentialBackOff(),
+		watchedResource:      make(map[xdsresource.ResourceType]map[string]bool),
+		cipResolver:          newNdsResolver(),
+		versionMap:           make(map[xdsresource.ResourceType]string),
+		nonceMap:             make(map[xdsresource.ResourceType]string),
+		resourceUpdater:      mockUpdater,
+		closeCh:              make(chan struct{}),
+		streamCh:             make(chan ADSStream, 1),
+		reqCh:                make(chan *discoveryv3.DiscoveryRequest, 1024),
+		inboundInitRequestCh: make(chan struct{}),
 	}
 	defer c.close()
 
@@ -187,6 +189,7 @@ func TestReconnect(t *testing.T) {
 		xdsSvrCfg: &XDSServerConfig{
 			SvrAddr:        XdsServerAddress,
 			NDSNotRequired: true,
+			LDSNotRequired: true,
 		},
 	}, ac, mockUpdater)
 	assert.Nil(t, err)
