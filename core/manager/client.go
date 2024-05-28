@@ -455,7 +455,7 @@ func (c *xdsClient) getListenerName(rName string) (string, error) {
 	if len(cip) > 0 {
 		return cip + "_" + port, nil
 	}
-	return "", fmt.Errorf("failed to convert listener name for %s", rName)
+	return "", fmt.Errorf("failed to convert listener name for %s addr %s", rName, addr)
 }
 
 // handleLDS handles the lds response

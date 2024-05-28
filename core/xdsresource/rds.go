@@ -54,10 +54,24 @@ type WeightedCluster struct {
 	Weight uint32
 }
 
+type RetryBackOff struct {
+	BaseInterval time.Duration
+	MaxInterval  time.Duration
+}
+
+type RetryPolicy struct {
+	RetryOn           string
+	NumRetries        int
+	PerTryTimeout     time.Duration
+	PerTryIdleTimeout time.Duration
+	RetryBackOff      *RetryBackOff
+}
+
 type Route struct {
 	Match            RouteMatch
 	WeightedClusters []*WeightedCluster
 	Timeout          time.Duration
+	RetryPolicy      RetryPolicy
 }
 
 type RouteMatch interface {
@@ -160,6 +174,20 @@ func unmarshalRoutes(rs []*v3routepb.Route) ([]*Route, error) {
 				route.WeightedClusters = clusters
 			}
 			route.Timeout = a.Route.GetTimeout().AsDuration()
+			if retryPolicy := a.Route.GetRetryPolicy(); retryPolicy != nil {
+				route.RetryPolicy = RetryPolicy{
+					RetryOn:           retryPolicy.GetRetryOn(),
+					NumRetries:        int(retryPolicy.GetNumRetries().GetValue()),
+					PerTryTimeout:     retryPolicy.GetPerTryTimeout().AsDuration(),
+					PerTryIdleTimeout: retryPolicy.GetPerTryIdleTimeout().AsDuration(),
+				}
+				if backoff := retryPolicy.GetRetryBackOff(); backoff != nil {
+					route.RetryPolicy.RetryBackOff = &RetryBackOff{
+						BaseInterval: backoff.GetMaxInterval().AsDuration(),
+						MaxInterval:  backoff.GetMaxInterval().AsDuration(),
+					}
+				}
+			}
 		}
 		routes[i] = route
 	}
@@ -180,6 +208,7 @@ func unmarshalRouteConfig(routeConfig *v3routepb.RouteConfiguration) (*RouteConf
 			Name:   vhs[i].GetName(),
 			Routes: routes,
 		}
+
 		virtualHosts[i] = virtualHost
 	}
 	return &RouteConfigResource{
