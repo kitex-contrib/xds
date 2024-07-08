@@ -33,7 +33,7 @@ func cbConifg(conf interface{}) interface{} {
 
 func TestCircuitBreaker(t *testing.T) {
 	cb := &circuitBreaker{
-		cb: circuitbreak.NewCBSuite(genServiceKey),
+		cb: circuitbreak.NewCBSuite(genCBServiceKey),
 	}
 
 	updater := func(res map[string]xdsresource.Resource) {

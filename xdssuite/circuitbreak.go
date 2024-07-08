@@ -93,7 +93,7 @@ func NewCircuitBreaker() client.Option {
 	}
 
 	cb := &circuitBreaker{
-		cb: circuitbreak.NewCBSuite(genServiceKey),
+		cb: circuitbreak.NewCBSuite(genCBServiceKey),
 	}
 	m.RegisterXDSUpdateHandler(xdsresource.ClusterType, func(res map[string]xdsresource.Resource) {
 		updateCircuitPolicy(res, cb.updateAllCircuitConfigs)
@@ -103,7 +103,7 @@ func NewCircuitBreaker() client.Option {
 
 // keep consistent when initialising the circuit breaker suit and updating
 // the circuit breaker policy.
-func genServiceKey(ri rpcinfo.RPCInfo) string {
+func genCBServiceKey(ri rpcinfo.RPCInfo) string {
 	if ri == nil {
 		return ""
 	}

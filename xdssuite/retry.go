@@ -17,10 +17,12 @@
 package xdssuite
 
 import (
+	"context"
 	"sync/atomic"
 
 	"github.com/cloudwego/kitex/client"
 	"github.com/cloudwego/kitex/pkg/retry"
+	"github.com/cloudwego/kitex/pkg/rpcinfo"
 
 	"github.com/kitex-contrib/xds/core/xdsresource"
 )
@@ -101,11 +103,22 @@ func NewRetryPolicy() client.Option {
 	}
 
 	retry := &retrySuit{
-		Container: retry.NewRetryContainer(retry.WithCustomizeKeyFunc(genServiceKey)),
+		Container: retry.NewRetryContainer(retry.WithCustomizeKeyFunc(genRetryServiceKey)),
 	}
 
 	m.RegisterXDSUpdateHandler(xdsresource.RouteConfigType, func(res map[string]xdsresource.Resource) {
 		updateRetryPolicy(retry, res)
 	})
 	return client.WithRetryContainer(retry.Container)
+}
+
+// keep consistent when initialising the circuit breaker suit and updating
+// the retry policy.
+func genRetryServiceKey(ctx context.Context, ri rpcinfo.RPCInfo) string {
+	if ri == nil {
+		return ""
+	}
+	// the value of RouterClusterKey is stored in route process.
+	key, _ := ri.To().Tag(RouterClusterKey)
+	return key
 }
