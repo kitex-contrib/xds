@@ -17,6 +17,7 @@
 package xdsresource
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -35,7 +36,7 @@ func processUnmarshalErrors(errs []error, errMap map[string]error) error {
 		}
 	}
 
-	return fmt.Errorf(b.String())
+	return errors.New(b.String())
 }
 
 func combineErrors(errs []error) error {
@@ -43,9 +44,11 @@ func combineErrors(errs []error) error {
 		return nil
 	}
 	var b strings.Builder
-	for _, err := range errs {
+	for i, err := range errs {
+		if i > 0 {
+			b.WriteString("\n")
+		}
 		b.WriteString(err.Error())
-		b.WriteString("\n")
 	}
-	return fmt.Errorf(b.String())
+	return errors.New(b.String())
 }
