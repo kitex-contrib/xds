@@ -27,6 +27,10 @@ import (
 	"github.com/kitex-contrib/xds/core/xdsresource"
 )
 
+const (
+	wildcardRetryKey = "*"
+)
+
 type retrySuit struct {
 	lastPolicies atomic.Value
 	*retry.Container
@@ -39,6 +43,7 @@ func updateRetryPolicy(rc *retrySuit, res map[string]xdsresource.Resource) {
 		lastPolicies = val.(map[string]struct{})
 	}
 
+	var wildcarRetryPolicy *retry.Policy
 	thisPolicies := make(map[string]struct{})
 	defer rc.lastPolicies.Store(thisPolicies)
 	for _, resource := range res {
@@ -83,10 +88,21 @@ func updateRetryPolicy(rc *retrySuit, res map[string]xdsresource.Resource) {
 					}
 					retryPolicy.FailurePolicy.BackOffPolicy = bop
 					rc.Container.NotifyPolicyChange(cluster.Name, retryPolicy)
+					// FIXME: The logic of retry is before the router, the value of key RouterClusterKey
+					// can't be found, use wildcard temporary and set the global policy here. And it recommend
+					// using envoyfilter to config the retry policy.
+					wildcarRetryPolicy = retryPolicy.DeepCopy()
 				}
 			}
 		}
 	}
+
+	if wildcarRetryPolicy == nil {
+		wildcarRetryPolicy = &retry.Policy{
+			Enable: false,
+		}
+	}
+	rc.Container.NotifyPolicyChange(wildcardRetryKey, *wildcarRetryPolicy)
 
 	for key := range lastPolicies {
 		if _, ok := thisPolicies[key]; !ok {
@@ -119,6 +135,11 @@ func genRetryServiceKey(ctx context.Context, ri rpcinfo.RPCInfo) string {
 		return ""
 	}
 	// the value of RouterClusterKey is stored in route process.
+	// FIXME: The logic of retry is before the router, the value of key RouterClusterKey
+	// can't be found, use wildcard temporary.
 	key, _ := ri.To().Tag(RouterClusterKey)
+	if key == "" {
+		return wildcardRetryKey
+	}
 	return key
 }

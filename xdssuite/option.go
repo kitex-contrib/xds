@@ -73,11 +73,12 @@ func (c *clientSuite) Options() []client.Option {
 // NewClientSuite client suite for xds handler
 func NewClientSuite(opts ...Option) *clientSuite {
 	cOpts := []client.Option{
-		NewCircuitBreaker(),
 		client.WithXDSSuite(xds.ClientSuite{
 			RouterMiddleware: NewXDSRouterMiddleware(opts...),
 			Resolver:         NewXDSResolver(),
 		}),
+		NewCircuitBreaker(),
+		NewRetryPolicy(),
 	}
 	return &clientSuite{cOpts}
 }
