@@ -29,14 +29,14 @@ import (
 	"github.com/kitex-contrib/xds/core/xdsresource"
 )
 
-type retrySuit struct {
+type retrySuite struct {
 	lastPolicies atomic.Value
 	*retry.Container
 	router      *XDSRouter
 	matchMethod bool
 }
 
-func updateRetryPolicy(rc *retrySuit, res map[string]xdsresource.Resource) {
+func updateRetryPolicy(rc *retrySuite, res map[string]xdsresource.Resource) {
 	lastPolicies := make(map[string]struct{})
 	val := rc.lastPolicies.Load()
 	if val != nil {
@@ -120,7 +120,7 @@ func NewRetryPolicy(opts ...Option) client.Option {
 		panic("xds resource manager has not been initialized")
 	}
 
-	rs := &retrySuit{
+	rs := &retrySuite{
 		router:      NewXDSRouter(opts...),
 		matchMethod: opt.matchRetryMethod,
 	}
@@ -134,7 +134,7 @@ func NewRetryPolicy(opts ...Option) client.Option {
 
 // keep consistent when initialising the circuit breaker suit and updating
 // the retry policy.
-func (rs *retrySuit) genRetryServiceKey(ctx context.Context, ri rpcinfo.RPCInfo) string {
+func (rs *retrySuite) genRetryServiceKey(ctx context.Context, ri rpcinfo.RPCInfo) string {
 	if ri == nil {
 		return ""
 	}
@@ -161,7 +161,7 @@ func (rs *retrySuit) genRetryServiceKey(ctx context.Context, ri rpcinfo.RPCInfo)
 	return rs.retryPolicyKey(res.ClusterPicked, dest.Method())
 }
 
-func (rs *retrySuit) retryPolicyKey(cluster, method string) string {
+func (rs *retrySuite) retryPolicyKey(cluster, method string) string {
 	if !rs.matchMethod {
 		return cluster
 	}

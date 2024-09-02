@@ -41,7 +41,7 @@ func dump(in interface{}) interface{} {
 }
 
 func TestRetry(t *testing.T) {
-	r := &retrySuit{
+	r := &retrySuite{
 		Container: retry.NewRetryContainer(),
 	}
 
