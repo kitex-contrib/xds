@@ -21,19 +21,19 @@ import (
 	"sync/atomic"
 
 	"github.com/cloudwego/kitex/client"
+	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/cloudwego/kitex/pkg/retry"
 	"github.com/cloudwego/kitex/pkg/rpcinfo"
+	"github.com/cloudwego/kitex/pkg/rpcinfo/remoteinfo"
 
 	"github.com/kitex-contrib/xds/core/xdsresource"
-)
-
-const (
-	wildcardRetryKey = "*"
 )
 
 type retrySuit struct {
 	lastPolicies atomic.Value
 	*retry.Container
+	router      *XDSRouter
+	matchMethod bool
 }
 
 func updateRetryPolicy(rc *retrySuit, res map[string]xdsresource.Resource) {
@@ -43,7 +43,6 @@ func updateRetryPolicy(rc *retrySuit, res map[string]xdsresource.Resource) {
 		lastPolicies = val.(map[string]struct{})
 	}
 
-	var wildcarRetryPolicy *retry.Policy
 	thisPolicies := make(map[string]struct{})
 	defer rc.lastPolicies.Store(thisPolicies)
 	for _, resource := range res {
@@ -65,7 +64,10 @@ func updateRetryPolicy(rc *retrySuit, res map[string]xdsresource.Resource) {
 							RetrySameNode: false,
 							StopPolicy: retry.StopPolicy{
 								MaxRetryTimes: route.RetryPolicy.NumRetries,
-								MaxDurationMS: uint32(route.RetryPolicy.PerTryTimeout.Milliseconds()),
+								MaxDurationMS: uint32(route.RetryPolicy.PerTryTimeout.Milliseconds()) * uint32(route.RetryPolicy.NumRetries),
+								CBPolicy: retry.CBPolicy{
+									ErrorRate: route.RetryPolicy.CBErrorRate,
+								},
 							},
 						},
 					}
@@ -88,22 +90,17 @@ func updateRetryPolicy(rc *retrySuit, res map[string]xdsresource.Resource) {
 					}
 					retryPolicy.FailurePolicy.BackOffPolicy = bop
 					rc.Container.NotifyPolicyChange(cluster.Name, retryPolicy)
-					// FIXME: The logic of retry is before the router, the value of key RouterClusterKey
-					// can't be found, use wildcard temporary and set the global policy here. And it recommend
-					// using envoyfilter to config the retry policy.
-					wildcarRetryPolicy = retryPolicy.DeepCopy()
+					for _, method := range route.RetryPolicy.Methods {
+						key := retryPolicyKey(cluster.Name, method)
+						thisPolicies[key] = struct{}{}
+						rc.Container.NotifyPolicyChange(key, *retryPolicy.DeepCopy())
+					}
 				}
 			}
 		}
 	}
 
-	if wildcarRetryPolicy == nil {
-		wildcarRetryPolicy = &retry.Policy{
-			Enable: false,
-		}
-	}
-	rc.Container.NotifyPolicyChange(wildcardRetryKey, *wildcarRetryPolicy)
-
+	klog.Debugf("[XDS] update retry policy: %v", thisPolicies)
 	for key := range lastPolicies {
 		if _, ok := thisPolicies[key]; !ok {
 			rc.Container.DeletePolicy(key)
@@ -111,35 +108,62 @@ func updateRetryPolicy(rc *retrySuit, res map[string]xdsresource.Resource) {
 	}
 }
 
+func retryPolicyKey(cluster, method string) string {
+	return cluster + "|" + method
+}
+
 // NewRetryPolicy integrate xds config and kitex circuitbreaker
-func NewRetryPolicy() client.Option {
+func NewRetryPolicy(opts ...Option) client.Option {
+	opt := NewOptions(opts)
 	m := xdsResourceManager.getManager()
 	if m == nil {
 		panic("xds resource manager has not been initialized")
 	}
 
-	retry := &retrySuit{
-		Container: retry.NewRetryContainer(retry.WithCustomizeKeyFunc(genRetryServiceKey)),
+	rs := &retrySuit{
+		router:      NewXDSRouter(opts...),
+		matchMethod: opt.matchRetryMethod,
 	}
+	rs.Container = retry.NewRetryContainer(retry.WithCustomizeKeyFunc(rs.genRetryServiceKey))
 
 	m.RegisterXDSUpdateHandler(xdsresource.RouteConfigType, func(res map[string]xdsresource.Resource) {
-		updateRetryPolicy(retry, res)
+		updateRetryPolicy(rs, res)
 	})
-	return client.WithRetryContainer(retry.Container)
+	return client.WithRetryContainer(rs.Container)
 }
 
 // keep consistent when initialising the circuit breaker suit and updating
 // the retry policy.
-func genRetryServiceKey(ctx context.Context, ri rpcinfo.RPCInfo) string {
+func (rs *retrySuit) genRetryServiceKey(ctx context.Context, ri rpcinfo.RPCInfo) string {
 	if ri == nil {
 		return ""
 	}
-	// the value of RouterClusterKey is stored in route process.
-	// FIXME: The logic of retry is before the router, the value of key RouterClusterKey
-	// can't be found, use wildcard temporary.
-	key, _ := ri.To().Tag(RouterClusterKey)
-	if key == "" {
-		return wildcardRetryKey
+	dest := ri.To()
+	if dest == nil {
+		return ""
 	}
-	return key
+
+	// the value of RouterClusterKey is stored in route process.
+	key, exist := ri.To().Tag(RouterClusterKey)
+	if exist {
+		return key
+	}
+	res, err := rs.router.Route(ctx, ri)
+	if err != nil {
+		klog.Warnf("[XDS] get router key failed err: %v", err)
+		return ""
+	}
+	// set destination
+	_ = remoteinfo.AsRemoteInfo(dest).SetTag(RouterClusterKey, res.ClusterPicked)
+	remoteinfo.AsRemoteInfo(dest).SetTagLock(RouterClusterKey)
+	// set timeout
+	_ = rpcinfo.AsMutableRPCConfig(ri.Config()).SetRPCTimeout(res.RPCTimeout)
+	return rs.retryPolicyKey(res.ClusterPicked, dest.Method())
+}
+
+func (rs *retrySuit) retryPolicyKey(cluster, method string) string {
+	if !rs.matchMethod {
+		return cluster
+	}
+	return retryPolicyKey(cluster, method)
 }

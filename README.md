@@ -31,9 +31,10 @@ To enable xDS mode in Kitex, we should invoke `xds.Init()` to initialize the xds
 #### Bootstrap
 The xdsClient is responsible for the interaction with the xDS Server (i.e. Istio). It needs some environment variables for initialization, which need to be set inside the `spec.containers.env` of the Kubernetes Manifest file in YAML format.
 
-* `POD_NAMESPACE`: the namespace of the current service.
+*  `POD_NAMESPACE`: the namespace of the current service.
 *  `POD_NAME`: the name of this pod.
 *  `INSTANCE_IP`: the ip of this pod.
+*  `KITEX_XDS_METAS`: the metadata of this xDS node.
 
 Add the following part to the definition of your container that uses xDS-enabled Kitex client.
 
@@ -50,6 +51,8 @@ valueFrom:
 valueFrom:
   fieldRef:
     fieldPath: status.podIP
+- name: KITEX_XDS_METAS
+  value: '{"CLUSTER_ID":"Kubernetes","DNS_AUTO_ALLOCATE":"true","DNS_CAPTURE":"true","INSTANCE_IPS":"$(INSTANCE_IP)","NAMESPACE":"$(POD_NAMESPACE)"}'
 ```
 
 ### Client-side
@@ -231,6 +234,10 @@ spec:
           failure_percentage_threshold: 10
           # the failure percentage request volume
           failure_percentage_request_volume: 101
+  workloadSelector:
+    labels:
+      # the label of the client pod.
+      app.kubernetes.io/name: kitex-client
 ```
 
 #### RateLimit
@@ -262,12 +269,72 @@ spec:
               max_tokens: 4
   workloadSelector:
     labels:
-      # the label of the service pod.
+      # the label of the server pod.
       app.kubernetes.io/name: kitex-server
 
 ```
 
+#### Retry
 
+Support using VirtualService and EnvoyFilter to config retry policy, the EnvoyFilter has more configuration.
+
+```
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: retry-sample
+  namespace: default
+spec:
+  hosts:
+  - hello.prod.svc.cluster.local:21001
+  http:
+  - route:
+    - destination:
+        host: hello.prod.svc.cluster.local:21001
+    retries:
+      attempts: 1
+      perTryTimeout: 2s
+```
+
+```
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: retry-enhance
+  namespace: default
+spec:
+  configPatches:
+  - applyTo: HTTP_ROUTE
+    match:
+      context: SIDECAR_OUTBOUND
+      routeConfiguration:
+        # service name, should obey FQDN
+        name: hello.default.svc.cluster.local:21001
+        vhost: 
+          # service name, should obey FQDN
+          name: hello.default.svc.cluster.local:21001
+    patch:
+      operation: MERGE
+      value:
+        route:
+          retryPolicy:
+            numRetries: 3
+            perTryTimeout: 100ms
+            retryBackOff:
+              baseInterval: 100ms
+              maxInterval: 100ms
+            retriableHeaders:
+              - name: "kitexRetryErrorRate"
+                stringMatch:
+                  exact: "0.29"
+              - name: "kitexRetryMethods"
+                stringMatch:
+                  exact: "Echo,Greet"
+  workloadSelector:
+    labels:
+      # the label of the service pod.
+      app.kubernetes.io/name: kitex-client
+```
 
 ## Example
 The usage is as follows:

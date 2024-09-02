@@ -29,8 +29,10 @@ type routerMetaExtractor func(context.Context) map[string]string
 
 // Options for xds suite
 type Options struct {
-	routerMetaExtractor routerMetaExtractor // use metainfo.GetAllValues by default.
-	servicePort         uint32
+	routerMetaExtractor       routerMetaExtractor // use metainfo.GetAllValues by default.
+	servicePort               uint32
+	matchRetryMethod          bool
+	enableServiceCircuitBreak bool
 }
 
 func (o *Options) Apply(opts []Option) {
@@ -51,6 +53,33 @@ func NewOptions(opts []Option) *Options {
 	}
 	o.Apply(opts)
 	return o
+}
+
+// WithServicePort configures the service port, used for rate limit.
+func WithServicePort(port uint32) Option {
+	return Option{
+		F: func(o *Options) {
+			o.servicePort = port
+		},
+	}
+}
+
+// WithMatchRetryMethod configures the flag of matchRetryMethod
+func WithMatchRetryMethod(match bool) Option {
+	return Option{
+		F: func(o *Options) {
+			o.matchRetryMethod = match
+		},
+	}
+}
+
+// WithServiceCircuitBreak if enable service dimension circuitbreak
+func WithServiceCircuitBreak(enable bool) Option {
+	return Option{
+		F: func(o *Options) {
+			o.enableServiceCircuitBreak = enable
+		},
+	}
 }
 
 // WithRouterMetaExtractor configures the extractor for metadata
@@ -77,8 +106,8 @@ func NewClientSuite(opts ...Option) *clientSuite {
 			RouterMiddleware: NewXDSRouterMiddleware(opts...),
 			Resolver:         NewXDSResolver(),
 		}),
-		NewCircuitBreaker(),
-		NewRetryPolicy(),
+		NewCircuitBreaker(opts...),
+		NewRetryPolicy(opts...),
 	}
 	return &clientSuite{cOpts}
 }

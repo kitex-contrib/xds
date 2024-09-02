@@ -92,7 +92,11 @@ func (r *XDSResolver) getEndpoints(ctx context.Context, desc string) ([]*xdsreso
 		return nil, fmt.Errorf("no endpoints for cluster: %s", desc)
 	}
 	// TODO: filter localities
-	return endpoints.Localities[0].Endpoints, nil
+	eps := make([]*xdsresource.Endpoint, 0, len(endpoints.Localities)*3)
+	for _, locality := range endpoints.Localities {
+		eps = append(eps, locality.Endpoints...)
+	}
+	return eps, nil
 }
 
 // Diff implements the Resolver interface. Use DefaultDiff.

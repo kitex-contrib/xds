@@ -19,11 +19,19 @@ package xdsresource
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	v3routepb "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	"github.com/golang/protobuf/ptypes/any"
 	"google.golang.org/protobuf/proto"
+)
+
+const (
+	// If the error rate large than it, the retry policy do not take affect.
+	cBErrorRateKey = "kitexRetryErrorRate"
+	retryMethods   = "kitexRetryMethods"
 )
 
 // RouteConfigResource is used for routing
@@ -34,6 +42,7 @@ type RouteConfigResource struct {
 	HTTPRouteConfig   *HTTPRouteConfig
 	ThriftRouteConfig *ThriftRouteConfig
 	MaxTokens         uint32
+	TokensPerFill     uint32
 }
 
 type HTTPRouteConfig struct {
@@ -64,7 +73,9 @@ type RetryPolicy struct {
 	NumRetries        int
 	PerTryTimeout     time.Duration
 	PerTryIdleTimeout time.Duration
+	CBErrorRate       float64
 	RetryBackOff      *RetryBackOff
+	Methods           []string
 }
 
 type Route struct {
@@ -180,6 +191,26 @@ func unmarshalRoutes(rs []*v3routepb.Route) ([]*Route, error) {
 					NumRetries:        int(retryPolicy.GetNumRetries().GetValue()),
 					PerTryTimeout:     retryPolicy.GetPerTryTimeout().AsDuration(),
 					PerTryIdleTimeout: retryPolicy.GetPerTryIdleTimeout().AsDuration(),
+				}
+				// used for config the errRate.
+				for _, header := range retryPolicy.GetRetriableHeaders() {
+					match := header.GetStringMatch()
+					if match == nil {
+						continue
+					}
+					value := match.GetExact()
+					if value == "" {
+						continue
+					}
+					switch header.Name {
+					case cBErrorRateKey:
+						errRate, err := strconv.ParseFloat(value, 64)
+						if err == nil {
+							route.RetryPolicy.CBErrorRate = errRate
+						}
+					case retryMethods:
+						route.RetryPolicy.Methods = strings.Split(value, ",")
+					}
 				}
 				if backoff := retryPolicy.GetRetryBackOff(); backoff != nil {
 					route.RetryPolicy.RetryBackOff = &RetryBackOff{

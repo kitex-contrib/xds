@@ -86,7 +86,8 @@ func updateCircuitPolicy(res map[string]xdsresource.Resource, handler func(map[s
 }
 
 // NewCircuitBreaker integrate xds config and kitex circuitbreaker
-func NewCircuitBreaker() client.Option {
+func NewCircuitBreaker(opts ...Option) client.Option {
+	opt := NewOptions(opts)
 	m := xdsResourceManager.getManager()
 	if m == nil {
 		panic("xds resource manager has not been initialized")
@@ -98,7 +99,10 @@ func NewCircuitBreaker() client.Option {
 	m.RegisterXDSUpdateHandler(xdsresource.ClusterType, func(res map[string]xdsresource.Resource) {
 		updateCircuitPolicy(res, cb.updateAllCircuitConfigs)
 	})
-	return client.WithCircuitBreaker(cb.cb)
+	if opt.enableServiceCircuitBreak {
+		return client.WithCircuitBreaker(cb.cb)
+	}
+	return client.WithInstanceMW(cb.cb.ServiceCBMW())
 }
 
 // keep consistent when initialising the circuit breaker suit and updating

@@ -32,9 +32,10 @@ Kitex 通过外部扩展 [kitex-contrib/xds](https://github.com/kitex-contrib/xd
 xdsClient 负责与控制面（例如 Istio）交互，以获得所需的 xDS 资源。在初始化时，需要读取环境变量用于构建 node 标识。所以，需要在K8S 的容器配置文件 `spec.containers.env` 部分加入以下几个环境变量。
 
 
-* `POD_NAMESPACE`: 当前 pod 所在的 namespace。
+*  `POD_NAMESPACE`: 当前 pod 所在的 namespace。
 *  `POD_NAME`: pod 名。
 *  `INSTANCE_IP`: pod 的 ip。
+*  `KITEX_XDS_METAS`: 用于构建 node 标识的元信息，格式为 json 字符串。
 
 在需要使用 xDS 功能的容器配置中加入以下定义即可：
 
@@ -51,6 +52,8 @@ valueFrom:
 valueFrom:
   fieldRef:
     fieldPath: status.podIP
+- name: KITEX_XDS_METAS
+  value: '{"CLUSTER_ID":"Kubernetes","DNS_AUTO_ALLOCATE":"true","DNS_CAPTURE":"true","INSTANCE_IPS":"$(INSTANCE_IP)","NAMESPACE":"$(POD_NAMESPACE)"}'
 ```
 
 ### Kitex 客户端
@@ -221,6 +224,10 @@ spec:
           failure_percentage_threshold: 10
           # 触发熔断请求量
           failure_percentage_request_volume: 101
+  workloadSelector:
+    labels:
+      # the label of the client pod.
+      app.kubernetes.io/name: kitex-client
 ```
 
 #### 限流配置
@@ -255,6 +262,67 @@ spec:
       # 服务实例 pod 的标签，根据实际情况填写
       app.kubernetes.io/name: kitex-server
 
+```
+#### 重试配置
+
+重试支持两个配置方式：VirtualService 和 EnvoyFilter，EnvoyFilter 支持更丰富的重试策略。
+
+```
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: retry-sample
+  namespace: default
+spec:
+  hosts:
+  - hello.prod.svc.cluster.local:21001
+  http:
+  - route:
+    - destination:
+        host: hello.prod.svc.cluster.local:21001
+    retries:
+      attempts: 1
+      perTryTimeout: 2s
+```
+
+```
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: retry-enhance
+  namespace: default
+spec:
+  configPatches:
+  - applyTo: HTTP_ROUTE
+    match:
+      context: SIDECAR_OUTBOUND
+      routeConfiguration:
+        # service name, should obey FQDN
+        name: hello.default.svc.cluster.local:21001
+        vhost: 
+          # service name, should obey FQDN
+          name: hello.default.svc.cluster.local:21001
+    patch:
+      operation: MERGE
+      value:
+        route:
+          retryPolicy:
+            numRetries: 3
+            perTryTimeout: 100ms
+            retryBackOff:
+              baseInterval: 100ms
+              maxInterval: 100ms
+            retriableHeaders:
+              - name: "kitexRetryErrorRate"
+                stringMatch:
+                  exact: "0.29"
+              - name: "kitexRetryMethods"
+                stringMatch:
+                  exact: "Echo,Greet"
+  workloadSelector:
+    labels:
+      # the label of the service pod.
+      app.kubernetes.io/name: kitex-client
 ```
 
 ## 示例
