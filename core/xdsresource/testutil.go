@@ -107,6 +107,9 @@ var (
 	rateLimit = &ratelimitv3.LocalRateLimit{
 		TokenBucket: &typedv3.TokenBucket{
 			MaxTokens: 10,
+			TokensPerFill: &wrappers.UInt32Value{
+				Value: 101,
+			},
 		},
 	}
 	// Rds

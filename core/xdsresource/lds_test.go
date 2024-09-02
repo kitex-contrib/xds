@@ -27,6 +27,7 @@ import (
 	v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"github.com/golang/protobuf/ptypes/any"
 	_struct "github.com/golang/protobuf/ptypes/struct"
+	wrappers "github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -82,6 +83,7 @@ func TestUnmarshalLDSHttpConnectionManager(t *testing.T) {
 	assert.Equal(t, RouteConfigName1, lis1.NetworkFilters[0].RouteConfigName)
 	assert.Equal(t, uint32(80), lis1.NetworkFilters[0].RoutePort)
 	assert.Equal(t, uint32(10), lis1.NetworkFilters[0].InlineRouteConfig.MaxTokens)
+	assert.Equal(t, uint32(101), lis1.NetworkFilters[0].InlineRouteConfig.TokensPerFill)
 
 	// inline route config
 	lis2 := res[ReturnedLisName2]
@@ -145,6 +147,9 @@ func TestGetLocalRateLimitFromHttpConnectionManager(t *testing.T) {
 	rateLimit := &ratelimitv3.LocalRateLimit{
 		TokenBucket: &v3.TokenBucket{
 			MaxTokens: 10,
+			TokensPerFill: &wrappers.UInt32Value{
+				Value: 10,
+			},
 		},
 	}
 	hcm := &v3httppb.HttpConnectionManager{
@@ -161,9 +166,10 @@ func TestGetLocalRateLimitFromHttpConnectionManager(t *testing.T) {
 			},
 		},
 	}
-	token, err := getLocalRateLimitFromHttpConnectionManager(hcm)
+	token, tokensPerfill, err := getLocalRateLimitFromHttpConnectionManager(hcm)
 	assert.Equal(t, err, nil)
 	assert.Equal(t, token, uint32(10))
+	assert.Equal(t, tokensPerfill, uint32(10))
 
 	// ---------------------------------- struct ratelimit ------------------------------------
 	structLimit := &udpatypev1.TypedStruct{
@@ -175,6 +181,11 @@ func TestGetLocalRateLimitFromHttpConnectionManager(t *testing.T) {
 						StructValue: &structpb.Struct{
 							Fields: map[string]*structpb.Value{
 								"max_tokens": {
+									Kind: &structpb.Value_NumberValue{
+										NumberValue: 100,
+									},
+								},
+								"tokens_per_fill": {
 									Kind: &structpb.Value_NumberValue{
 										NumberValue: 100,
 									},
@@ -201,7 +212,8 @@ func TestGetLocalRateLimitFromHttpConnectionManager(t *testing.T) {
 			},
 		},
 	}
-	token, err = getLocalRateLimitFromHttpConnectionManager(hcm1)
+	token, tokensPerfill, err = getLocalRateLimitFromHttpConnectionManager(hcm1)
 	assert.Equal(t, err, nil)
 	assert.Equal(t, token, uint32(100))
+	assert.Equal(t, tokensPerfill, uint32(100))
 }
