@@ -25,7 +25,7 @@ import (
 	"github.com/kitex-contrib/xds/core/xdsresource"
 )
 
-func cbConifg(conf interface{}) interface{} {
+func cbConfig(conf interface{}) interface{} {
 	m := conf.(map[string]interface{})
 	m = m["cb_config"].(map[string]interface{})
 	return m["service"]
@@ -48,7 +48,7 @@ func TestCircuitBreaker(t *testing.T) {
 			},
 		},
 	})
-	assert.Equal(t, cbConifg(cb.cb.Dump()), map[string]interface{}{
+	assert.Equal(t, cbConfig(cb.cb.Dump()), map[string]interface{}{
 		"c1": circuitbreak.CBConfig{
 			Enable:    true,
 			MinSample: 100,
@@ -64,7 +64,7 @@ func TestCircuitBreaker(t *testing.T) {
 			},
 		},
 	})
-	assert.Equal(t, cbConifg(cb.cb.Dump()), map[string]interface{}{
+	assert.Equal(t, cbConfig(cb.cb.Dump()), map[string]interface{}{
 		"c1": circuitbreak.CBConfig{
 			Enable: false,
 		},
@@ -81,7 +81,7 @@ func TestCircuitBreaker(t *testing.T) {
 			},
 		},
 	})
-	assert.Equal(t, cbConifg(cb.cb.Dump()), map[string]interface{}{
+	assert.Equal(t, cbConfig(cb.cb.Dump()), map[string]interface{}{
 		"c1": circuitbreak.CBConfig{
 			Enable: false,
 		},
@@ -98,7 +98,7 @@ func TestCircuitBreaker(t *testing.T) {
 			},
 		},
 	})
-	assert.Equal(t, cbConifg(cb.cb.Dump()), map[string]interface{}{
+	assert.Equal(t, cbConfig(cb.cb.Dump()), map[string]interface{}{
 		"c1": circuitbreak.CBConfig{
 			Enable: false,
 		},
