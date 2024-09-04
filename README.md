@@ -58,17 +58,12 @@ valueFrom:
 ### Client-side
 
 For now, we only provide the support on the client-side. 
-To use a xds-enabled Kitex client, you should specify `destService` using the URL of your target service and add one option `WithXDSSuite`.
-
-* Construct a `xds.ClientSuite` that includes `RouteMiddleware` and `Resolver`, and then pass it into the `WithXDSSuite` option.
+To use a xds-enabled Kitex client, you should specify `destService` using the URL of your target service and add one option `xdssuite.NewClientOption()` that includes `RouteMiddleware` and `Resolver`.
 
 ```
-// import "github.com/cloudwego/kitex/pkg/xds"
+// import "github.com/kitex-contrib/xds/xdssuite"
 
-client.WithXDSSuite(xds.ClientSuite{
-	RouterMiddleware: xdssuite.NewXDSRouterMiddleware(),
-	Resolver:         xdssuite.NewXDSResolver(),
-}),
+xdssuite.NewClientOption()
 ```
 
 * The URL of the target service should be in the format, which follows the format in [Kubernetes](https://kubernetes.io/):
@@ -342,7 +337,6 @@ The usage is as follows:
 ```
 import (
 	"github.com/cloudwego/kitex/client"
-	xds2 "github.com/cloudwego/kitex/pkg/xds"
 	"github.com/kitex-contrib/xds"
 	"github.com/kitex-contrib/xds/xdssuite"
 	"github.com/cloudwego/kitex-proxyless-test/service/codec/thrift/kitex_gen/proxyless/greetservice"
@@ -358,10 +352,7 @@ func main() {
 	// initialize the client
 	cli, err := greetservice.NewClient(
 		destService,
-		client.WithXDSSuite(xds2.ClientSuite{
-			RouterMiddleware: xdssuite.NewXDSRouterMiddleware(),
-			Resolver:         xdssuite.NewXDSResolver(),
-		}),
+        xdssuite.NewClientOption(),
 	)
 	
 	req := &proxyless.HelloRequest{Message: "Hello!"}
@@ -390,9 +381,9 @@ spec:
 ``` 
 
 ### Limited support for Service Governance
-Current version only support Service Discovery, Traffic route, Rate Limit, Timeout Configuration via xDS on the client-side and circuit-breaking. 
+Current version support Service Discovery, Traffic route, Rate Limit, Timeout Configuration via xDS on the client-side and circuit-breaking. 
 
-Other features supported via xDS, including Load Balancing and Retry etc, will be added in the future.
+Other features supported via xDS, including Load Balancing etc, will be added in the future.
 
 ## Compatibility
 This package is only tested under Istio1.13.3.

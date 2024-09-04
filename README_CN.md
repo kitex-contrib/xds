@@ -58,17 +58,12 @@ valueFrom:
 
 ### Kitex 客户端
 目前，我们仅在 Kitex 客户端提供 xDS 的支持。
-想要使用支持 xds 的 Kitex 客户端，请在构造 Kitex Client 时将 `destService`  指定为目标服务的 URL，并添加一个选项 `WithXDSSuite`。
-
-* 构造一个 `xds.ClientSuite`，需要包含用于服务路由的`RouteMiddleware`中间件和用于服务发现的 `Resolver`。将该 ClientSuite 传入`WithXDSSuite` option 中.
+想要使用支持 xds 的 Kitex 客户端，请在构造 Kitex Client 时将 `destService`  指定为目标服务的 URL，并添加一个选项 `xdssuite.NewClientOption`，这个选项包含了服务路由的`RouteMiddleware`中间件和用于服务发现的 `Resolver`.
 
 ```
-// import "github.com/cloudwego/kitex/pkg/xds"
+// import "github.com/kitex-contrib/xds/xdssuite"
 
-client.WithXDSSuite(xds.ClientSuite{
-	RouterMiddleware: xdssuite.NewXDSRouterMiddleware(),
-	Resolver:         xdssuite.NewXDSResolver(),
-}),
+xdssuite.NewClientOption()
 ```
 
 * 目标服务的 URL 格式应遵循 [Kubernetes](https://kubernetes.io/) 中的格式：
@@ -346,7 +341,7 @@ func main() {
 	// initialize the client
 	cli, err := greetservice.NewClient(
 		destService,
-		xdssuite.NewClientSuite(),
+		xdssuite.NewClientOption(),
 	)
 	
 	req := &proxyless.HelloRequest{Message: "Hello!"}
