@@ -400,4 +400,4 @@ This package is only tested under Istio1.13.3.
 maintained by: [ppzqh](https://github.com/ppzqh)
 
 ## Dependencies
-Kitex >= v0.4.0
+Kitex >= v0.10.3

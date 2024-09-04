@@ -157,13 +157,13 @@ func routeByStage(ctx context.Context) map[string]string {
 }
 
 // add the option
-client.WithXDSSuite(xds2.ClientSuite{
+client.NewClientSuite(
 	RouterMiddleware: xdssuite.NewXDSRouterMiddleware(
 		// use this option to specify the meta extractor
 		xdssuite.WithRouterMetaExtractor(routeByStage),
 	),
 	Resolver: xdssuite.NewXDSResolver(),
-}),
+),
 ```
 * 在调用时设置流量的元信息（需与元信息提取方法对应）。这里，我们使用`metainfo.WithValue` 来指定流量的标签。在路由匹配时，会提取元信息进行匹配。
 ```
@@ -331,7 +331,6 @@ spec:
 ```
 import (
 	"github.com/cloudwego/kitex/client"
-	xds2 "github.com/cloudwego/kitex/pkg/xds"
 	"github.com/kitex-contrib/xds"
 	"github.com/kitex-contrib/xds/xdssuite"
 	"github.com/cloudwego/kitex-proxyless-test/service/codec/thrift/kitex_gen/proxyless/greetservice"
@@ -347,10 +346,7 @@ func main() {
 	// initialize the client
 	cli, err := greetservice.NewClient(
 		destService,
-		client.WithXDSSuite(xds2.ClientSuite{
-			RouterMiddleware: xdssuite.NewXDSRouterMiddleware(),
-			Resolver:         xdssuite.NewXDSResolver(),
-		}),
+		xdssuite.NewClientSuite(),
 	)
 	
 	req := &proxyless.HelloRequest{Message: "Hello!"}
@@ -378,10 +374,10 @@ spec:
     mode: DISABLE
 ``` 
 
-### 有限的服务治理功能
-当前版本仅支持客户端通过 xDS 进行服务发现、流量路由、速率限制、超时配置和熔断。
+### 功能支持范围
+当前版本支持客户端通过 xDS 进行服务发现、流量路由、速率限制、重试、超时配置和熔断。
 
-xDS 所支持的其他服务治理功能，包括负载平衡和重试等，将在未来补齐。
+xDS 所支持的其他服务治理功能，包括负载平衡等，将在未来补齐。
 
 ## 兼容性
 此项目仅在 Istio1.13.3 下进行测试。
@@ -389,4 +385,4 @@ xDS 所支持的其他服务治理功能，包括负载平衡和重试等，将�
 maintained by: [ppzqh](https://github.com/ppzqh)
 
 ## 依赖
-Kitex >= v0.4.0
+Kitex >= v0.10.3
