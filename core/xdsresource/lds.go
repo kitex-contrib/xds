@@ -207,7 +207,7 @@ func unmarshallHTTPConnectionManager(rawResources *any.Any) (string, *RouteConfi
 	if err := proto.Unmarshal(rawResources.GetValue(), httpConnMng); err != nil {
 		return "", nil, fmt.Errorf("unmarshal HttpConnectionManager failed: %s", err)
 	}
-	maxTokens, err := getLocalRateLimitFromHttpConnectionManager(httpConnMng)
+	maxTokens, tokensPerfill, err := getLocalRateLimitFromHttpConnectionManager(httpConnMng)
 	if err != nil {
 		return "", nil, err
 	}
@@ -223,7 +223,8 @@ func unmarshallHTTPConnectionManager(rawResources *any.Any) (string, *RouteConfi
 			return "", nil, fmt.Errorf("no route config Name")
 		}
 		return httpConnMng.GetRds().GetRouteConfigName(), &RouteConfigResource{
-			MaxTokens: maxTokens,
+			MaxTokens:     maxTokens,
+			TokensPerFill: tokensPerfill,
 		}, nil
 	case *v3httppb.HttpConnectionManager_RouteConfig:
 		var rcfg *v3routepb.RouteConfiguration
@@ -235,12 +236,13 @@ func unmarshallHTTPConnectionManager(rawResources *any.Any) (string, *RouteConfi
 			return "", nil, err
 		}
 		inlineRouteConfig.MaxTokens = maxTokens
+		inlineRouteConfig.TokensPerFill = tokensPerfill
 		return httpConnMng.GetRouteConfig().GetName(), inlineRouteConfig, nil
 	}
 	return "", nil, nil
 }
 
-func getLocalRateLimitFromHttpConnectionManager(hcm *v3httppb.HttpConnectionManager) (uint32, error) {
+func getLocalRateLimitFromHttpConnectionManager(hcm *v3httppb.HttpConnectionManager) (uint32, uint32, error) {
 	for _, filter := range hcm.HttpFilters {
 		switch filter.ConfigType.(type) {
 		case *v3httppb.HttpFilter_TypedConfig:
@@ -252,16 +254,16 @@ func getLocalRateLimitFromHttpConnectionManager(hcm *v3httppb.HttpConnectionMana
 			case RateLimitTypeURL:
 				lrl := &ratelimitv3.LocalRateLimit{}
 				if err := proto.Unmarshal(typedConfig, lrl); err != nil {
-					return 0, fmt.Errorf("unmarshal LocalRateLimit failed: %s", err)
+					return 0, 0, fmt.Errorf("unmarshal LocalRateLimit failed: %s", err)
 				}
 				if lrl.TokenBucket != nil {
-					return lrl.TokenBucket.MaxTokens, nil
+					return lrl.TokenBucket.MaxTokens, lrl.TokenBucket.TokensPerFill.GetValue(), nil
 				}
 			case TypedStructTypeURL:
 				// ratelimit may be configured with udpa struct.
 				ts := &udpatypev1.TypedStruct{}
 				if err := proto.Unmarshal(typedConfig, ts); err != nil {
-					return 0, fmt.Errorf("unmarshal TypedStruct failed: %s", err)
+					return 0, 0, fmt.Errorf("unmarshal TypedStruct failed: %s", err)
 				}
 				tokenBucket, ok := ts.GetValue().GetFields()["token_bucket"]
 				if !ok {
@@ -271,10 +273,14 @@ func getLocalRateLimitFromHttpConnectionManager(hcm *v3httppb.HttpConnectionMana
 				if !ok {
 					continue
 				}
-				return uint32(maxTokens.GetNumberValue()), nil
+				tokensPerfill, ok := tokenBucket.GetStructValue().GetFields()["tokens_per_fill"]
+				if !ok {
+					continue
+				}
+				return uint32(maxTokens.GetNumberValue()), uint32(tokensPerfill.GetNumberValue()), nil
 			}
 		}
-		return 0, nil
+		return 0, 0, nil
 	}
-	return 0, nil
+	return 0, 0, nil
 }

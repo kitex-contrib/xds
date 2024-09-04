@@ -315,13 +315,15 @@ func TestRegisterXDSUpdateHandler(t *testing.T) {
 			{
 				RoutePort: 80,
 				InlineRouteConfig: &xdsresource.RouteConfigResource{
-					MaxTokens: 100,
+					MaxTokens:     100,
+					TokensPerFill: 100,
 				},
 			},
 			{
 				RoutePort: 0,
 				InlineRouteConfig: &xdsresource.RouteConfigResource{
-					MaxTokens: 1000,
+					MaxTokens:     1000,
+					TokensPerFill: 100,
 				},
 			},
 		},

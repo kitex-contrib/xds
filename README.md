@@ -260,6 +260,7 @@ spec:
             token_bucket:
               # the qps limit
               max_tokens: 4
+              tokens_per_fill: 10
   workloadSelector:
     labels:
       # the label of the service pod.

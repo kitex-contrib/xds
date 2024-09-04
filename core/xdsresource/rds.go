@@ -34,6 +34,7 @@ type RouteConfigResource struct {
 	HTTPRouteConfig   *HTTPRouteConfig
 	ThriftRouteConfig *ThriftRouteConfig
 	MaxTokens         uint32
+	TokensPerFill     uint32
 }
 
 type HTTPRouteConfig struct {

@@ -250,6 +250,7 @@ spec:
             token_bucket:
               # 限流参数
               max_tokens: 4
+              tokens_per_fill: 10
   workloadSelector:
     labels:
       # 服务实例 pod 的标签，根据实际情况填写

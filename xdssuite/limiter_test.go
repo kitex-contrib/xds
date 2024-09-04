@@ -43,7 +43,7 @@ func TestLimiter(t *testing.T) {
 				{
 					RoutePort: 80,
 					InlineRouteConfig: &xdsresource.RouteConfigResource{
-						MaxTokens: 100,
+						TokensPerFill: 100,
 					},
 				},
 			},
@@ -58,7 +58,7 @@ func TestLimiter(t *testing.T) {
 				{
 					RoutePort: 80,
 					InlineRouteConfig: &xdsresource.RouteConfigResource{
-						MaxTokens: 100,
+						TokensPerFill: 100,
 					},
 				},
 			},
@@ -73,7 +73,7 @@ func TestLimiter(t *testing.T) {
 				{
 					RoutePort: 80,
 					InlineRouteConfig: &xdsresource.RouteConfigResource{
-						MaxTokens: 1000,
+						TokensPerFill: 1000,
 					},
 				},
 			},
@@ -88,7 +88,7 @@ func TestLimiter(t *testing.T) {
 				{
 					RoutePort: 0,
 					InlineRouteConfig: &xdsresource.RouteConfigResource{
-						MaxTokens: 999,
+						TokensPerFill: 999,
 					},
 				},
 			},
@@ -103,7 +103,7 @@ func TestLimiter(t *testing.T) {
 				{
 					RoutePort: 8080,
 					InlineRouteConfig: &xdsresource.RouteConfigResource{
-						MaxTokens: 999,
+						TokensPerFill: 999,
 					},
 				},
 			},

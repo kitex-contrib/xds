@@ -52,13 +52,13 @@ func getLimiterPolicy(up map[string]xdsresource.Resource) map[uint32]uint32 {
 	if lds == nil {
 		return nil
 	}
-	maxTokens := make(map[uint32]uint32)
+	tpfs := make(map[uint32]uint32)
 	for _, lis := range lds.NetworkFilters {
 		if lis.InlineRouteConfig != nil {
-			maxTokens[lis.RoutePort] = lis.InlineRouteConfig.MaxTokens
+			tpfs[lis.RoutePort] = lis.InlineRouteConfig.TokensPerFill
 		}
 	}
-	return maxTokens
+	return tpfs
 }
 
 type limiter struct {
