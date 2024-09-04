@@ -100,7 +100,7 @@ func (c *clientSuite) Options() []client.Option {
 }
 
 // NewClientSuite client suite for xds handler
-func NewClientSuite(opts ...Option) *clientSuite {
+func NewClientSuite(opts ...Option) client.Option {
 	cOpts := []client.Option{
 		client.WithXDSSuite(xds.ClientSuite{
 			RouterMiddleware: NewXDSRouterMiddleware(opts...),
@@ -109,7 +109,7 @@ func NewClientSuite(opts ...Option) *clientSuite {
 		NewCircuitBreaker(opts...),
 		NewRetryPolicy(opts...),
 	}
-	return &clientSuite{cOpts}
+	return client.WithSuite(&clientSuite{cOpts})
 }
 
 type serverSuite struct {
@@ -121,11 +121,9 @@ func (s *serverSuite) Options() []server.Option {
 }
 
 // NewServerSuite server suite for xds handler
-func NewServerSuite(opts ...Option) *serverSuite {
+func NewServerSuite(opts ...Option) server.Option {
 	cOpts := []server.Option{
 		NewLimiter(opts...),
 	}
-	return &serverSuite{
-		cOpts: cOpts,
-	}
+	return server.WithSuite(&serverSuite{cOpts})
 }
