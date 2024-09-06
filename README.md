@@ -31,9 +31,10 @@ To enable xDS mode in Kitex, we should invoke `xds.Init()` to initialize the xds
 #### Bootstrap
 The xdsClient is responsible for the interaction with the xDS Server (i.e. Istio). It needs some environment variables for initialization, which need to be set inside the `spec.containers.env` of the Kubernetes Manifest file in YAML format.
 
-* `POD_NAMESPACE`: the namespace of the current service.
+*  `POD_NAMESPACE`: the namespace of the current service.
 *  `POD_NAME`: the name of this pod.
 *  `INSTANCE_IP`: the ip of this pod.
+*  `KITEX_XDS_METAS`: the metadata of this xDS node.
 
 Add the following part to the definition of your container that uses xDS-enabled Kitex client.
 
@@ -50,22 +51,19 @@ valueFrom:
 valueFrom:
   fieldRef:
     fieldPath: status.podIP
+- name: KITEX_XDS_METAS
+  value: '{"CLUSTER_ID":"Kubernetes","DNS_AUTO_ALLOCATE":"true","DNS_CAPTURE":"true","INSTANCE_IPS":"$(INSTANCE_IP)","NAMESPACE":"$(POD_NAMESPACE)"}'
 ```
 
 ### Client-side
 
 For now, we only provide the support on the client-side. 
-To use a xds-enabled Kitex client, you should specify `destService` using the URL of your target service and add one option `WithXDSSuite`.
-
-* Construct a `xds.ClientSuite` that includes `RouteMiddleware` and `Resolver`, and then pass it into the `WithXDSSuite` option.
+To use a xds-enabled Kitex client, you should specify `destService` using the URL of your target service and add one option `xdssuite.NewClientOption()` that includes `RouteMiddleware` and `Resolver`.
 
 ```
-// import "github.com/cloudwego/kitex/pkg/xds"
+// import "github.com/kitex-contrib/xds/xdssuite"
 
-client.WithXDSSuite(xds.ClientSuite{
-	RouterMiddleware: xdssuite.NewXDSRouterMiddleware(),
-	Resolver:         xdssuite.NewXDSResolver(),
-}),
+xdssuite.NewClientOption()
 ```
 
 * The URL of the target service should be in the format, which follows the format in [Kubernetes](https://kubernetes.io/):
@@ -231,6 +229,10 @@ spec:
           failure_percentage_threshold: 10
           # the failure percentage request volume
           failure_percentage_request_volume: 101
+  workloadSelector:
+    labels:
+      # the label of the client pod.
+      app.kubernetes.io/name: kitex-client
 ```
 
 #### RateLimit
@@ -263,12 +265,72 @@ spec:
               tokens_per_fill: 10
   workloadSelector:
     labels:
-      # the label of the service pod.
+      # the label of the server pod.
       app.kubernetes.io/name: kitex-server
 
 ```
 
+#### Retry
 
+Support using VirtualService and EnvoyFilter to config retry policy, the EnvoyFilter has more configuration.
+
+```
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: retry-sample
+  namespace: default
+spec:
+  hosts:
+  - hello.prod.svc.cluster.local:21001
+  http:
+  - route:
+    - destination:
+        host: hello.prod.svc.cluster.local:21001
+    retries:
+      attempts: 1
+      perTryTimeout: 2s
+```
+
+```
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: retry-enhance
+  namespace: default
+spec:
+  configPatches:
+  - applyTo: HTTP_ROUTE
+    match:
+      context: SIDECAR_OUTBOUND
+      routeConfiguration:
+        # service name, should obey FQDN
+        name: hello.default.svc.cluster.local:21001
+        vhost: 
+          # service name, should obey FQDN
+          name: hello.default.svc.cluster.local:21001
+    patch:
+      operation: MERGE
+      value:
+        route:
+          retryPolicy:
+            numRetries: 3
+            perTryTimeout: 100ms
+            retryBackOff:
+              baseInterval: 100ms
+              maxInterval: 100ms
+            retriableHeaders:
+              - name: "kitexRetryErrorRate"
+                stringMatch:
+                  exact: "0.29"
+              - name: "kitexRetryMethods"
+                stringMatch:
+                  exact: "Echo,Greet"
+  workloadSelector:
+    labels:
+      # the label of the service pod.
+      app.kubernetes.io/name: kitex-client
+```
 
 ## Example
 The usage is as follows:
@@ -276,7 +338,6 @@ The usage is as follows:
 ```
 import (
 	"github.com/cloudwego/kitex/client"
-	xds2 "github.com/cloudwego/kitex/pkg/xds"
 	"github.com/kitex-contrib/xds"
 	"github.com/kitex-contrib/xds/xdssuite"
 	"github.com/cloudwego/kitex-proxyless-test/service/codec/thrift/kitex_gen/proxyless/greetservice"
@@ -292,10 +353,7 @@ func main() {
 	// initialize the client
 	cli, err := greetservice.NewClient(
 		destService,
-		client.WithXDSSuite(xds2.ClientSuite{
-			RouterMiddleware: xdssuite.NewXDSRouterMiddleware(),
-			Resolver:         xdssuite.NewXDSResolver(),
-		}),
+        xdssuite.NewClientOption(),
 	)
 	
 	req := &proxyless.HelloRequest{Message: "Hello!"}
@@ -324,9 +382,9 @@ spec:
 ``` 
 
 ### Limited support for Service Governance
-Current version only support Service Discovery, Traffic route, Rate Limit, Timeout Configuration via xDS on the client-side and circuit-breaking. 
+Current version support Service Discovery, Traffic route, Rate Limit, Timeout Configuration via xDS on the client-side and circuit-breaking. 
 
-Other features supported via xDS, including Load Balancing and Retry etc, will be added in the future.
+Other features supported via xDS, including Load Balancing etc, will be added in the future.
 
 ## Compatibility
 This package is only tested under Istio1.13.3.
@@ -334,4 +392,4 @@ This package is only tested under Istio1.13.3.
 maintained by: [ppzqh](https://github.com/ppzqh)
 
 ## Dependencies
-Kitex >= v0.4.0
+Kitex >= v0.10.3

@@ -44,6 +44,11 @@ func NewXDSRouterMiddleware(opts ...Option) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, request, response interface{}) error {
 			ri := rpcinfo.GetRPCInfo(ctx)
+			_, exist := ri.To().Tag(RouterClusterKey)
+			if exist {
+				return next(ctx, request, response)
+			}
+
 			dest := ri.To()
 			if dest == nil {
 				return kerrors.ErrNoDestService

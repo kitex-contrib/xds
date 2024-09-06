@@ -32,9 +32,10 @@ Kitex 通过外部扩展 [kitex-contrib/xds](https://github.com/kitex-contrib/xd
 xdsClient 负责与控制面（例如 Istio）交互，以获得所需的 xDS 资源。在初始化时，需要读取环境变量用于构建 node 标识。所以，需要在K8S 的容器配置文件 `spec.containers.env` 部分加入以下几个环境变量。
 
 
-* `POD_NAMESPACE`: 当前 pod 所在的 namespace。
+*  `POD_NAMESPACE`: 当前 pod 所在的 namespace。
 *  `POD_NAME`: pod 名。
 *  `INSTANCE_IP`: pod 的 ip。
+*  `KITEX_XDS_METAS`: 用于构建 node 标识的元信息，格式为 json 字符串。
 
 在需要使用 xDS 功能的容器配置中加入以下定义即可：
 
@@ -51,21 +52,18 @@ valueFrom:
 valueFrom:
   fieldRef:
     fieldPath: status.podIP
+- name: KITEX_XDS_METAS
+  value: '{"CLUSTER_ID":"Kubernetes","DNS_AUTO_ALLOCATE":"true","DNS_CAPTURE":"true","INSTANCE_IPS":"$(INSTANCE_IP)","NAMESPACE":"$(POD_NAMESPACE)"}'
 ```
 
 ### Kitex 客户端
 目前，我们仅在 Kitex 客户端提供 xDS 的支持。
-想要使用支持 xds 的 Kitex 客户端，请在构造 Kitex Client 时将 `destService`  指定为目标服务的 URL，并添加一个选项 `WithXDSSuite`。
-
-* 构造一个 `xds.ClientSuite`，需要包含用于服务路由的`RouteMiddleware`中间件和用于服务发现的 `Resolver`。将该 ClientSuite 传入`WithXDSSuite` option 中.
+想要使用支持 xds 的 Kitex 客户端，请在构造 Kitex Client 时将 `destService`  指定为目标服务的 URL，并添加一个选项 `xdssuite.NewClientOption`，这个选项包含了服务路由的`RouteMiddleware`中间件和用于服务发现的 `Resolver`.
 
 ```
-// import "github.com/cloudwego/kitex/pkg/xds"
+// import "github.com/kitex-contrib/xds/xdssuite"
 
-client.WithXDSSuite(xds.ClientSuite{
-	RouterMiddleware: xdssuite.NewXDSRouterMiddleware(),
-	Resolver:         xdssuite.NewXDSResolver(),
-}),
+xdssuite.NewClientOption()
 ```
 
 * 目标服务的 URL 格式应遵循 [Kubernetes](https://kubernetes.io/) 中的格式：
@@ -154,13 +152,13 @@ func routeByStage(ctx context.Context) map[string]string {
 }
 
 // add the option
-client.WithXDSSuite(xds2.ClientSuite{
+client.NewClientSuite(
 	RouterMiddleware: xdssuite.NewXDSRouterMiddleware(
 		// use this option to specify the meta extractor
 		xdssuite.WithRouterMetaExtractor(routeByStage),
 	),
 	Resolver: xdssuite.NewXDSResolver(),
-}),
+),
 ```
 * 在调用时设置流量的元信息（需与元信息提取方法对应）。这里，我们使用`metainfo.WithValue` 来指定流量的标签。在路由匹配时，会提取元信息进行匹配。
 ```
@@ -221,6 +219,10 @@ spec:
           failure_percentage_threshold: 10
           # 触发熔断请求量
           failure_percentage_request_volume: 101
+  workloadSelector:
+    labels:
+      # the label of the client pod.
+      app.kubernetes.io/name: kitex-client
 ```
 
 #### 限流配置
@@ -257,6 +259,67 @@ spec:
       app.kubernetes.io/name: kitex-server
 
 ```
+#### 重试配置
+
+重试支持两个配置方式：VirtualService 和 EnvoyFilter，EnvoyFilter 支持更丰富的重试策略。
+
+```
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: retry-sample
+  namespace: default
+spec:
+  hosts:
+  - hello.prod.svc.cluster.local:21001
+  http:
+  - route:
+    - destination:
+        host: hello.prod.svc.cluster.local:21001
+    retries:
+      attempts: 1
+      perTryTimeout: 2s
+```
+
+```
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: retry-enhance
+  namespace: default
+spec:
+  configPatches:
+  - applyTo: HTTP_ROUTE
+    match:
+      context: SIDECAR_OUTBOUND
+      routeConfiguration:
+        # service name, should obey FQDN
+        name: hello.default.svc.cluster.local:21001
+        vhost: 
+          # service name, should obey FQDN
+          name: hello.default.svc.cluster.local:21001
+    patch:
+      operation: MERGE
+      value:
+        route:
+          retryPolicy:
+            numRetries: 3
+            perTryTimeout: 100ms
+            retryBackOff:
+              baseInterval: 100ms
+              maxInterval: 100ms
+            retriableHeaders:
+              - name: "kitexRetryErrorRate"
+                stringMatch:
+                  exact: "0.29"
+              - name: "kitexRetryMethods"
+                stringMatch:
+                  exact: "Echo,Greet"
+  workloadSelector:
+    labels:
+      # the label of the service pod.
+      app.kubernetes.io/name: kitex-client
+```
 
 ## 示例
 完整的客户端用法如下:
@@ -264,7 +327,6 @@ spec:
 ```
 import (
 	"github.com/cloudwego/kitex/client"
-	xds2 "github.com/cloudwego/kitex/pkg/xds"
 	"github.com/kitex-contrib/xds"
 	"github.com/kitex-contrib/xds/xdssuite"
 	"github.com/cloudwego/kitex-proxyless-test/service/codec/thrift/kitex_gen/proxyless/greetservice"
@@ -280,10 +342,7 @@ func main() {
 	// initialize the client
 	cli, err := greetservice.NewClient(
 		destService,
-		client.WithXDSSuite(xds2.ClientSuite{
-			RouterMiddleware: xdssuite.NewXDSRouterMiddleware(),
-			Resolver:         xdssuite.NewXDSResolver(),
-		}),
+		xdssuite.NewClientOption(),
 	)
 	
 	req := &proxyless.HelloRequest{Message: "Hello!"}
@@ -311,10 +370,10 @@ spec:
     mode: DISABLE
 ``` 
 
-### 有限的服务治理功能
-当前版本仅支持客户端通过 xDS 进行服务发现、流量路由、速率限制、超时配置和熔断。
+### 功能支持范围
+当前版本支持客户端通过 xDS 进行服务发现、流量路由、速率限制、重试、超时配置和熔断。
 
-xDS 所支持的其他服务治理功能，包括负载平衡和重试等，将在未来补齐。
+xDS 所支持的其他服务治理功能，包括负载平衡等，将在未来补齐。
 
 ## 兼容性
 此项目仅在 Istio1.13.3 下进行测试。
@@ -322,4 +381,4 @@ xDS 所支持的其他服务治理功能，包括负载平衡和重试等，将�
 maintained by: [ppzqh](https://github.com/ppzqh)
 
 ## 依赖
-Kitex >= v0.4.0
+Kitex >= v0.10.3

@@ -29,8 +29,10 @@ type routerMetaExtractor func(context.Context) map[string]string
 
 // Options for xds suite
 type Options struct {
-	routerMetaExtractor routerMetaExtractor // use metainfo.GetAllValues by default.
-	servicePort         uint32
+	routerMetaExtractor       routerMetaExtractor // use metainfo.GetAllValues by default.
+	servicePort               uint32
+	matchRetryMethod          bool
+	enableServiceCircuitBreak bool
 }
 
 func (o *Options) Apply(opts []Option) {
@@ -53,6 +55,33 @@ func NewOptions(opts []Option) *Options {
 	return o
 }
 
+// WithServicePort configures the service port, used for rate limit.
+func WithServicePort(port uint32) Option {
+	return Option{
+		F: func(o *Options) {
+			o.servicePort = port
+		},
+	}
+}
+
+// WithMatchRetryMethod configures the flag of matchRetryMethod
+func WithMatchRetryMethod(match bool) Option {
+	return Option{
+		F: func(o *Options) {
+			o.matchRetryMethod = match
+		},
+	}
+}
+
+// WithServiceCircuitBreak if enable service dimension circuitbreak
+func WithServiceCircuitBreak(enable bool) Option {
+	return Option{
+		F: func(o *Options) {
+			o.enableServiceCircuitBreak = enable
+		},
+	}
+}
+
 // WithRouterMetaExtractor configures the extractor for metadata
 func WithRouterMetaExtractor(routerMetaExtractor routerMetaExtractor) Option {
 	return Option{
@@ -71,15 +100,21 @@ func (c *clientSuite) Options() []client.Option {
 }
 
 // NewClientSuite client suite for xds handler
-func NewClientSuite(opts ...Option) *clientSuite {
+func NewClientSuite(opts ...Option) client.Suite {
 	cOpts := []client.Option{
-		NewCircuitBreaker(),
 		client.WithXDSSuite(xds.ClientSuite{
 			RouterMiddleware: NewXDSRouterMiddleware(opts...),
 			Resolver:         NewXDSResolver(),
 		}),
+		NewCircuitBreaker(opts...),
+		NewRetryPolicy(opts...),
 	}
 	return &clientSuite{cOpts}
+}
+
+// NewClientOption wrapper for NewClientSuite
+func NewClientOption(opts ...Option) client.Option {
+	return client.WithSuite(NewClientSuite(opts...))
 }
 
 type serverSuite struct {
@@ -91,11 +126,14 @@ func (s *serverSuite) Options() []server.Option {
 }
 
 // NewServerSuite server suite for xds handler
-func NewServerSuite(opts ...Option) *serverSuite {
+func NewServerSuite(opts ...Option) server.Suite {
 	cOpts := []server.Option{
 		NewLimiter(opts...),
 	}
-	return &serverSuite{
-		cOpts: cOpts,
-	}
+	return &serverSuite{cOpts}
+}
+
+// NewServerOption wrapper for NewServerSuite.
+func NewServerOption(opts ...Option) server.Option {
+	return server.WithSuite(NewServerSuite(opts...))
 }

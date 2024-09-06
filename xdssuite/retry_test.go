@@ -41,7 +41,7 @@ func dump(in interface{}) interface{} {
 }
 
 func TestRetry(t *testing.T) {
-	r := &retrySuit{
+	r := &retrySuite{
 		Container: retry.NewRetryContainer(),
 	}
 
@@ -120,7 +120,7 @@ func TestRetry(t *testing.T) {
 				RetrySameNode: false,
 				StopPolicy: retry.StopPolicy{
 					MaxRetryTimes: 2,
-					MaxDurationMS: 1000,
+					MaxDurationMS: 2000,
 				},
 				BackOffPolicy: &retry.BackOffPolicy{
 					BackOffType: retry.FixedBackOffType,
@@ -137,7 +137,7 @@ func TestRetry(t *testing.T) {
 				RetrySameNode: false,
 				StopPolicy: retry.StopPolicy{
 					MaxRetryTimes: 3,
-					MaxDurationMS: 1000,
+					MaxDurationMS: 3000,
 				},
 				BackOffPolicy: &retry.BackOffPolicy{
 					BackOffType: retry.RandomBackOffType,
@@ -182,7 +182,7 @@ func TestRetry(t *testing.T) {
 				RetrySameNode: false,
 				StopPolicy: retry.StopPolicy{
 					MaxRetryTimes: 2,
-					MaxDurationMS: 5000,
+					MaxDurationMS: 10000,
 				},
 				BackOffPolicy: &retry.BackOffPolicy{
 					BackOffType: retry.NoneBackOffType,

@@ -21,18 +21,22 @@ import (
 	"sync/atomic"
 
 	"github.com/cloudwego/kitex/client"
+	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/cloudwego/kitex/pkg/retry"
 	"github.com/cloudwego/kitex/pkg/rpcinfo"
+	"github.com/cloudwego/kitex/pkg/rpcinfo/remoteinfo"
 
 	"github.com/kitex-contrib/xds/core/xdsresource"
 )
 
-type retrySuit struct {
+type retrySuite struct {
 	lastPolicies atomic.Value
 	*retry.Container
+	router      *XDSRouter
+	matchMethod bool
 }
 
-func updateRetryPolicy(rc *retrySuit, res map[string]xdsresource.Resource) {
+func updateRetryPolicy(rc *retrySuite, res map[string]xdsresource.Resource) {
 	lastPolicies := make(map[string]struct{})
 	val := rc.lastPolicies.Load()
 	if val != nil {
@@ -60,7 +64,10 @@ func updateRetryPolicy(rc *retrySuit, res map[string]xdsresource.Resource) {
 							RetrySameNode: false,
 							StopPolicy: retry.StopPolicy{
 								MaxRetryTimes: route.RetryPolicy.NumRetries,
-								MaxDurationMS: uint32(route.RetryPolicy.PerTryTimeout.Milliseconds()),
+								MaxDurationMS: uint32(route.RetryPolicy.PerTryTimeout.Milliseconds()) * uint32(route.RetryPolicy.NumRetries),
+								CBPolicy: retry.CBPolicy{
+									ErrorRate: route.RetryPolicy.CBErrorRate,
+								},
 							},
 						},
 					}
@@ -83,11 +90,17 @@ func updateRetryPolicy(rc *retrySuit, res map[string]xdsresource.Resource) {
 					}
 					retryPolicy.FailurePolicy.BackOffPolicy = bop
 					rc.Container.NotifyPolicyChange(cluster.Name, retryPolicy)
+					for _, method := range route.RetryPolicy.Methods {
+						key := retryPolicyKey(cluster.Name, method)
+						thisPolicies[key] = struct{}{}
+						rc.Container.NotifyPolicyChange(key, *retryPolicy.DeepCopy())
+					}
 				}
 			}
 		}
 	}
 
+	klog.Debugf("[XDS] update retry policy: %v", thisPolicies)
 	for key := range lastPolicies {
 		if _, ok := thisPolicies[key]; !ok {
 			rc.Container.DeletePolicy(key)
@@ -95,30 +108,62 @@ func updateRetryPolicy(rc *retrySuit, res map[string]xdsresource.Resource) {
 	}
 }
 
+func retryPolicyKey(cluster, method string) string {
+	return cluster + "|" + method
+}
+
 // NewRetryPolicy integrate xds config and kitex circuitbreaker
-func NewRetryPolicy() client.Option {
+func NewRetryPolicy(opts ...Option) client.Option {
+	opt := NewOptions(opts)
 	m := xdsResourceManager.getManager()
 	if m == nil {
 		panic("xds resource manager has not been initialized")
 	}
 
-	retry := &retrySuit{
-		Container: retry.NewRetryContainer(retry.WithCustomizeKeyFunc(genRetryServiceKey)),
+	rs := &retrySuite{
+		router:      NewXDSRouter(opts...),
+		matchMethod: opt.matchRetryMethod,
 	}
+	rs.Container = retry.NewRetryContainer(retry.WithCustomizeKeyFunc(rs.genRetryServiceKey))
 
 	m.RegisterXDSUpdateHandler(xdsresource.RouteConfigType, func(res map[string]xdsresource.Resource) {
-		updateRetryPolicy(retry, res)
+		updateRetryPolicy(rs, res)
 	})
-	return client.WithRetryContainer(retry.Container)
+	return client.WithRetryContainer(rs.Container)
 }
 
 // keep consistent when initialising the circuit breaker suit and updating
 // the retry policy.
-func genRetryServiceKey(ctx context.Context, ri rpcinfo.RPCInfo) string {
+func (rs *retrySuite) genRetryServiceKey(ctx context.Context, ri rpcinfo.RPCInfo) string {
 	if ri == nil {
 		return ""
 	}
+	dest := ri.To()
+	if dest == nil {
+		return ""
+	}
+
 	// the value of RouterClusterKey is stored in route process.
-	key, _ := ri.To().Tag(RouterClusterKey)
-	return key
+	key, exist := ri.To().Tag(RouterClusterKey)
+	if exist {
+		return key
+	}
+	res, err := rs.router.Route(ctx, ri)
+	if err != nil {
+		klog.Warnf("[XDS] get router key failed err: %v", err)
+		return ""
+	}
+	// set destination
+	_ = remoteinfo.AsRemoteInfo(dest).SetTag(RouterClusterKey, res.ClusterPicked)
+	remoteinfo.AsRemoteInfo(dest).SetTagLock(RouterClusterKey)
+	// set timeout
+	_ = rpcinfo.AsMutableRPCConfig(ri.Config()).SetRPCTimeout(res.RPCTimeout)
+	return rs.retryPolicyKey(res.ClusterPicked, dest.Method())
+}
+
+func (rs *retrySuite) retryPolicyKey(cluster, method string) string {
+	if !rs.matchMethod {
+		return cluster
+	}
+	return retryPolicyKey(cluster, method)
 }
