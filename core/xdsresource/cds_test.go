@@ -20,14 +20,14 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/golang/protobuf/ptypes/any"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 func TestUnmarshalCDSError(t *testing.T) {
 	tests := []struct {
 		name         string
-		rawResources []*any.Any
+		rawResources []*anypb.Any
 		want         map[string]Resource
 		wantErr      bool
 	}{
@@ -39,7 +39,7 @@ func TestUnmarshalCDSError(t *testing.T) {
 		},
 		{
 			name: "incorrect resource type url",
-			rawResources: []*any.Any{
+			rawResources: []*anypb.Any{
 				{TypeUrl: ListenerTypeURL, Value: []byte{}},
 			},
 			want:    map[string]Resource{},
@@ -61,7 +61,7 @@ func TestUnmarshalCDSError(t *testing.T) {
 }
 
 func TestUnmarshalCDSSuccess(t *testing.T) {
-	rawResources := []*any.Any{
+	rawResources := []*anypb.Any{
 		MarshalAny(Cluster1),
 	}
 	got, err := UnmarshalCDS(rawResources)

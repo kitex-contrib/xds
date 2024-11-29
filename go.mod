@@ -6,9 +6,8 @@ require (
 	github.com/bytedance/gopkg v0.1.1
 	github.com/cenkalti/backoff/v4 v4.1.0
 	github.com/cloudwego/kitex v0.11.3
-	github.com/cncf/udpa/go v0.0.0-20220112060539-c52dc94e7fbe
+	github.com/cncf/xds/go v0.0.0-20230607035331-e9ce68804cb4
 	github.com/envoyproxy/go-control-plane v0.11.1
-	github.com/golang/protobuf v1.5.3
 	github.com/google/go-cmp v0.5.9
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/atomic v1.11.0
@@ -32,10 +31,10 @@ require (
 	github.com/cloudwego/netpoll v0.6.4 // indirect
 	github.com/cloudwego/runtimex v0.1.0 // indirect
 	github.com/cloudwego/thriftgo v0.3.17 // indirect
-	github.com/cncf/xds/go v0.0.0-20230607035331-e9ce68804cb4 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.0.1 // indirect
 	github.com/fatih/structtag v1.2.0 // indirect
+	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/pprof v0.0.0-20240727154555-813a5fbdbec8 // indirect
 	github.com/iancoleman/strcase v0.2.0 // indirect
 	github.com/jhump/protoreflect v1.8.2 // indirect

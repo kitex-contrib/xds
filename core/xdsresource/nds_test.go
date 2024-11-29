@@ -22,14 +22,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/golang/protobuf/ptypes/any"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	dnsProto "github.com/kitex-contrib/xds/core/api/kitex_gen/istio.io/istio/pkg/dns/proto/istio_networking_nds_v1"
 )
 
 func TestUnmarshalNDSError(t *testing.T) {
 	type args struct {
-		rawResources []*any.Any
+		rawResources []*anypb.Any
 	}
 	tests := []struct {
 		name    string
@@ -48,7 +48,7 @@ func TestUnmarshalNDSError(t *testing.T) {
 		{
 			name: "incorrect resource type url",
 			args: args{
-				[]*any.Any{
+				[]*anypb.Any{
 					{TypeUrl: ListenerTypeURL, Value: []byte{}},
 				},
 			},
@@ -79,7 +79,7 @@ func TestUnmarshalNDSSuccess(t *testing.T) {
 			},
 		},
 	}
-	rawResources := []*any.Any{
+	rawResources := []*anypb.Any{
 		MarshalAny(nt),
 	}
 	res, err := UnmarshalNDS(rawResources)

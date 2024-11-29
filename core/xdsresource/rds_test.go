@@ -23,14 +23,14 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	v3routepb "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
-	"github.com/golang/protobuf/ptypes/any"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func TestUnmarshalRDSError(t *testing.T) {
 	tests := []struct {
 		name         string
-		rawResources []*any.Any
+		rawResources []*anypb.Any
 		want         map[string]Resource
 		wantErr      bool
 	}{
@@ -42,7 +42,7 @@ func TestUnmarshalRDSError(t *testing.T) {
 		},
 		{
 			name: "incorrect resource type url",
-			rawResources: []*any.Any{
+			rawResources: []*anypb.Any{
 				{TypeUrl: EndpointTypeURL, Value: []byte{}},
 			},
 			want:    map[string]Resource{},
@@ -69,7 +69,7 @@ func TestUnmarshalRDSSuccess(t *testing.T) {
 		vhName          = "vh"
 		path            = "test"
 	)
-	rawResources := []*any.Any{
+	rawResources := []*anypb.Any{
 		MarshalAny(&v3routepb.RouteConfiguration{
 			Name: routeConfigName,
 			VirtualHosts: []*v3routepb.VirtualHost{

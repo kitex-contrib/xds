@@ -23,7 +23,8 @@ import (
 	"strconv"
 
 	v3endpointpb "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
-	"github.com/golang/protobuf/ptypes/any"
+	"google.golang.org/protobuf/types/known/anypb"
+
 	"google.golang.org/protobuf/proto"
 
 	"github.com/cloudwego/kitex/pkg/utils"
@@ -100,7 +101,7 @@ func parseClusterLoadAssignment(cla *v3endpointpb.ClusterLoadAssignment) (*Endpo
 	}, nil
 }
 
-func UnmarshalEDS(rawResources []*any.Any) (map[string]Resource, error) {
+func UnmarshalEDS(rawResources []*anypb.Any) (map[string]Resource, error) {
 	ret := make(map[string]Resource, len(rawResources))
 	errMap := make(map[string]error)
 	var errSlice []error

@@ -20,22 +20,22 @@ import (
 	"reflect"
 	"testing"
 
-	udpatypev1 "github.com/cncf/udpa/go/udpa/type/v1"
+	udpatypev1 "github.com/cncf/xds/go/udpa/type/v1"
 	v3routepb "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	ratelimitv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/local_ratelimit/v3"
 	v3httppb "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
-	"github.com/golang/protobuf/ptypes/any"
-	_struct "github.com/golang/protobuf/ptypes/struct"
-	wrappers "github.com/golang/protobuf/ptypes/wrappers"
+	"google.golang.org/protobuf/types/known/anypb"
+
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/structpb"
+	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func TestUnmarshalLDSError(t *testing.T) {
 	tests := []struct {
 		name         string
-		rawResources []*any.Any
+		rawResources []*anypb.Any
 		want         map[string]*ListenerResource
 		wantErr      bool
 	}{
@@ -47,7 +47,7 @@ func TestUnmarshalLDSError(t *testing.T) {
 		},
 		{
 			name: "incorrect resource type url",
-			rawResources: []*any.Any{
+			rawResources: []*anypb.Any{
 				{TypeUrl: EndpointTypeURL, Value: []byte{}},
 			},
 			want:    map[string]*ListenerResource{},
@@ -69,7 +69,7 @@ func TestUnmarshalLDSError(t *testing.T) {
 }
 
 func TestUnmarshalLDSHttpConnectionManager(t *testing.T) {
-	rawResources := []*any.Any{
+	rawResources := []*anypb.Any{
 		MarshalAny(Listener1),
 		MarshalAny(Listener2),
 	}
@@ -96,7 +96,7 @@ func TestUnmarshalLDSHttpConnectionManager(t *testing.T) {
 }
 
 func TestUnmarshallLDSThriftProxy(t *testing.T) {
-	rawResources := []*any.Any{
+	rawResources := []*anypb.Any{
 		MarshalAny(Listener3),
 	}
 	res, err := UnmarshalLDS(rawResources)
@@ -147,7 +147,7 @@ func TestGetLocalRateLimitFromHttpConnectionManager(t *testing.T) {
 	rateLimit := &ratelimitv3.LocalRateLimit{
 		TokenBucket: &v3.TokenBucket{
 			MaxTokens: 10,
-			TokensPerFill: &wrappers.UInt32Value{
+			TokensPerFill: &wrapperspb.UInt32Value{
 				Value: 10,
 			},
 		},
@@ -174,7 +174,7 @@ func TestGetLocalRateLimitFromHttpConnectionManager(t *testing.T) {
 	// ---------------------------------- struct ratelimit ------------------------------------
 	structLimit := &udpatypev1.TypedStruct{
 		TypeUrl: RateLimitTypeURL,
-		Value: &_struct.Struct{
+		Value: &structpb.Struct{
 			Fields: map[string]*structpb.Value{
 				"token_bucket": {
 					Kind: &structpb.Value_StructValue{
