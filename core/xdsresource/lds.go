@@ -19,13 +19,14 @@ package xdsresource
 import (
 	"fmt"
 
-	udpatypev1 "github.com/cncf/udpa/go/udpa/type/v1"
+	udpatypev1 "github.com/cncf/xds/go/udpa/type/v1"
 	v3listenerpb "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	v3routepb "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	ratelimitv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/local_ratelimit/v3"
 	v3httppb "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	v3thrift_proxy "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/thrift_proxy/v3"
-	"github.com/golang/protobuf/ptypes/any"
+	"google.golang.org/protobuf/types/known/anypb"
+
 	"google.golang.org/protobuf/proto"
 )
 
@@ -60,7 +61,7 @@ type NetworkFilter struct {
 // UnmarshalLDS unmarshalls the LDS Response.
 // Only focus on OutboundListener now.
 // Get the InlineRouteConfig or RouteConfigName from the listener.
-func UnmarshalLDS(rawResources []*any.Any) (map[string]*ListenerResource, error) {
+func UnmarshalLDS(rawResources []*anypb.Any) (map[string]*ListenerResource, error) {
 	ret := make(map[string]*ListenerResource, len(rawResources))
 	errMap := make(map[string]error)
 	var errSlice []error
@@ -150,7 +151,7 @@ func unmarshalFilterChain(fc *v3listenerpb.FilterChain) ([]*NetworkFilter, error
 	return filters, combineErrors(errSlice)
 }
 
-func unmarshalThriftProxy(rawResources *any.Any) (*RouteConfigResource, error) {
+func unmarshalThriftProxy(rawResources *anypb.Any) (*RouteConfigResource, error) {
 	tp := &v3thrift_proxy.ThriftProxy{}
 	if err := proto.Unmarshal(rawResources.GetValue(), tp); err != nil {
 		return nil, fmt.Errorf("unmarshal HttpConnectionManager failed: %s", err)
@@ -201,7 +202,7 @@ func unmarshalThriftProxy(rawResources *any.Any) (*RouteConfigResource, error) {
 	}, nil
 }
 
-func unmarshallHTTPConnectionManager(rawResources *any.Any) (string, *RouteConfigResource, error) {
+func unmarshallHTTPConnectionManager(rawResources *anypb.Any) (string, *RouteConfigResource, error) {
 	httpConnMng := &v3httppb.HttpConnectionManager{}
 
 	if err := proto.Unmarshal(rawResources.GetValue(), httpConnMng); err != nil {

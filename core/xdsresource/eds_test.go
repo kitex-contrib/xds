@@ -21,14 +21,14 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/golang/protobuf/ptypes/any"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 func TestUnmarshalEDSError(t *testing.T) {
 	tests := []struct {
 		name         string
-		rawResources []*any.Any
+		rawResources []*anypb.Any
 		want         map[string]Resource
 		wantErr      bool
 	}{
@@ -40,7 +40,7 @@ func TestUnmarshalEDSError(t *testing.T) {
 		},
 		{
 			name: "incorrect resource type url",
-			rawResources: []*any.Any{
+			rawResources: []*anypb.Any{
 				{TypeUrl: ListenerTypeURL, Value: []byte{}},
 			},
 			want:    map[string]Resource{},
@@ -65,7 +65,7 @@ func TestUnmarshalEDSSuccess(t *testing.T) {
 	// edsAddr := "127.0.0.1"
 	// edsPort1, edsPort2 := 8080, 8081
 	// edsWeight1, edsWeight2 := 50, 50
-	rawResources := []*any.Any{
+	rawResources := []*anypb.Any{
 		MarshalAny(Endpoints1),
 	}
 	got, err := UnmarshalEDS(rawResources)

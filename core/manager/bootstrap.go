@@ -24,8 +24,8 @@ import (
 
 	"github.com/cloudwego/kitex/pkg/klog"
 	v3core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-	structpb "github.com/golang/protobuf/ptypes/struct"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 const (

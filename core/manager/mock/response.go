@@ -18,7 +18,7 @@ package mock
 
 import (
 	discoveryv3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
-	"github.com/golang/protobuf/ptypes/any"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/kitex-contrib/xds/core/xdsresource"
 )
@@ -36,7 +36,7 @@ var (
 
 	LdsInbound = &discoveryv3.DiscoveryResponse{
 		VersionInfo: LDSVersion1,
-		Resources: []*any.Any{
+		Resources: []*anypb.Any{
 			xdsresource.MarshalAny(xdsresource.InboundListener1),
 		},
 		Canary:       false,
@@ -47,7 +47,7 @@ var (
 
 	LdsResp1 = &discoveryv3.DiscoveryResponse{
 		VersionInfo: LDSVersion1,
-		Resources: []*any.Any{
+		Resources: []*anypb.Any{
 			xdsresource.MarshalAny(xdsresource.Listener1),
 			xdsresource.MarshalAny(xdsresource.Listener2),
 		},
@@ -58,7 +58,7 @@ var (
 	}
 	LdsResp2 = &discoveryv3.DiscoveryResponse{
 		VersionInfo: LDSVersion2,
-		Resources: []*any.Any{
+		Resources: []*anypb.Any{
 			xdsresource.MarshalAny(xdsresource.Listener2),
 		},
 		Canary:       false,
@@ -84,7 +84,7 @@ var (
 
 	RdsResp1 = &discoveryv3.DiscoveryResponse{
 		VersionInfo: RDSVersion1,
-		Resources: []*any.Any{
+		Resources: []*anypb.Any{
 			xdsresource.MarshalAny(xdsresource.RouteConfig1),
 			xdsresource.MarshalAny(xdsresource.RouteConfig2),
 		},
@@ -95,7 +95,7 @@ var (
 	}
 	RdsResp2 = &discoveryv3.DiscoveryResponse{
 		VersionInfo: RDSVersion2,
-		Resources: []*any.Any{
+		Resources: []*anypb.Any{
 			xdsresource.MarshalAny(xdsresource.RouteConfig2),
 		},
 		Canary:       false,
@@ -114,7 +114,7 @@ var (
 
 	CdsResp1 = &discoveryv3.DiscoveryResponse{
 		VersionInfo: CDSVersion1,
-		Resources: []*any.Any{
+		Resources: []*anypb.Any{
 			xdsresource.MarshalAny(xdsresource.Cluster1),
 			xdsresource.MarshalAny(xdsresource.Cluster2),
 		},
@@ -125,7 +125,7 @@ var (
 	}
 	CdsResp2 = &discoveryv3.DiscoveryResponse{
 		VersionInfo: CDSVersion2,
-		Resources: []*any.Any{
+		Resources: []*anypb.Any{
 			xdsresource.MarshalAny(xdsresource.Cluster2),
 		},
 		Canary:       false,
@@ -144,7 +144,7 @@ var (
 
 	EdsResp1 = &discoveryv3.DiscoveryResponse{
 		VersionInfo: EDSVersion1,
-		Resources: []*any.Any{
+		Resources: []*anypb.Any{
 			xdsresource.MarshalAny(xdsresource.Endpoints1),
 			xdsresource.MarshalAny(xdsresource.Endpoints2),
 		},
@@ -155,7 +155,7 @@ var (
 	}
 	EdsResp2 = &discoveryv3.DiscoveryResponse{
 		VersionInfo: EDSVersion2,
-		Resources: []*any.Any{
+		Resources: []*anypb.Any{
 			xdsresource.MarshalAny(xdsresource.Endpoints2),
 		},
 		Canary:       false,
@@ -171,7 +171,7 @@ var (
 	NDSNonce1   = "nonce1"
 	NdsResp1    = &discoveryv3.DiscoveryResponse{
 		VersionInfo: NDSVersion1,
-		Resources: []*any.Any{
+		Resources: []*anypb.Any{
 			xdsresource.MarshalAny(xdsresource.NameTable1),
 		},
 		Canary:       false,

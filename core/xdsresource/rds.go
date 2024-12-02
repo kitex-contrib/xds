@@ -24,8 +24,8 @@ import (
 	"time"
 
 	v3routepb "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
-	"github.com/golang/protobuf/ptypes/any"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 const (
@@ -247,7 +247,7 @@ func unmarshalRouteConfig(routeConfig *v3routepb.RouteConfiguration) (*RouteConf
 	}, nil
 }
 
-func UnmarshalRDS(rawResources []*any.Any) (map[string]Resource, error) {
+func UnmarshalRDS(rawResources []*anypb.Any) (map[string]Resource, error) {
 	ret := make(map[string]Resource, len(rawResources))
 	errMap := make(map[string]error)
 	var errSlice []error

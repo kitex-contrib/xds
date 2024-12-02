@@ -19,8 +19,8 @@ package xdsresource
 import (
 	"fmt"
 
-	"github.com/golang/protobuf/ptypes/any"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	dnsProto "github.com/kitex-contrib/xds/core/api/kitex_gen/istio.io/istio/pkg/dns/proto/istio_networking_nds_v1"
 )
@@ -29,7 +29,7 @@ type NDSResource struct {
 	NameTable map[string][]string
 }
 
-func UnmarshalNDS(rawResources []*any.Any) (*NDSResource, error) {
+func UnmarshalNDS(rawResources []*anypb.Any) (*NDSResource, error) {
 	if len(rawResources) < 1 {
 		return nil, fmt.Errorf("no NDS resource found in the response")
 	}

@@ -27,8 +27,6 @@ import (
 	v3thrift_proxy "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/thrift_proxy/v3"
 	v3matcher "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	typedv3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
-	"github.com/golang/protobuf/ptypes/any"
-	"github.com/golang/protobuf/ptypes/wrappers"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -36,7 +34,7 @@ import (
 	dnsProto "github.com/kitex-contrib/xds/core/api/kitex_gen/istio.io/istio/pkg/dns/proto/istio_networking_nds_v1"
 )
 
-func MarshalAny(message proto.Message) *any.Any {
+func MarshalAny(message proto.Message) *anypb.Any {
 	a, _ := anypb.New(message)
 	return a
 }
@@ -107,7 +105,7 @@ var (
 	rateLimit = &ratelimitv3.LocalRateLimit{
 		TokenBucket: &typedv3.TokenBucket{
 			MaxTokens: 10,
-			TokensPerFill: &wrappers.UInt32Value{
+			TokensPerFill: &wrapperspb.UInt32Value{
 				Value: 101,
 			},
 		},
@@ -330,10 +328,10 @@ var (
 		},
 		LbPolicy: v3clusterpb.Cluster_ROUND_ROBIN,
 		OutlierDetection: &v3clusterpb.OutlierDetection{
-			FailurePercentageThreshold: &wrappers.UInt32Value{
+			FailurePercentageThreshold: &wrapperspb.UInt32Value{
 				Value: 10,
 			},
-			FailurePercentageRequestVolume: &wrappers.UInt32Value{
+			FailurePercentageRequestVolume: &wrapperspb.UInt32Value{
 				Value: 100,
 			},
 		},
@@ -346,10 +344,10 @@ var (
 			ServiceName: EndpointName1,
 		},
 		OutlierDetection: &v3clusterpb.OutlierDetection{
-			FailurePercentageThreshold: &wrappers.UInt32Value{
+			FailurePercentageThreshold: &wrapperspb.UInt32Value{
 				Value: 10,
 			},
-			FailurePercentageRequestVolume: &wrappers.UInt32Value{
+			FailurePercentageRequestVolume: &wrapperspb.UInt32Value{
 				Value: 0,
 			},
 		},

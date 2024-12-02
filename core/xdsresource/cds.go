@@ -21,7 +21,8 @@ import (
 	"fmt"
 
 	v3clusterpb "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
-	"github.com/golang/protobuf/ptypes/any"
+	"google.golang.org/protobuf/types/known/anypb"
+
 	"google.golang.org/protobuf/proto"
 )
 
@@ -91,7 +92,7 @@ func (c *ClusterResource) InlineEDS() *EndpointsResource {
 	return c.InlineEndpoints
 }
 
-func unmarshalCluster(r *any.Any) (string, *ClusterResource, error) {
+func unmarshalCluster(r *anypb.Any) (string, *ClusterResource, error) {
 	if r.GetTypeUrl() != ClusterTypeURL {
 		return "", nil, fmt.Errorf("invalid cluster resource type: %s", r.GetTypeUrl())
 	}
@@ -123,7 +124,7 @@ func unmarshalCluster(r *any.Any) (string, *ClusterResource, error) {
 	return c.Name, ret, nil
 }
 
-func UnmarshalCDS(rawResources []*any.Any) (map[string]Resource, error) {
+func UnmarshalCDS(rawResources []*anypb.Any) (map[string]Resource, error) {
 	ret := make(map[string]Resource, len(rawResources))
 	errMap := make(map[string]error)
 	var errSlice []error
